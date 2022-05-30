@@ -1,0 +1,264 @@
+type Subdomain @entity {
+  id: ID!
+
+  name: String!
+
+  parent: BigInt!
+  
+  owner: String!
+}
+
+type CapacityChanged @entity {
+  id: ID!
+
+  node: String!
+
+  capacity: BigInt!
+}
+
+type PriceChanged @entity {
+  id: ID!
+
+  basePrices: [BigInt]!
+
+  rentPrices: [BigInt]!
+}
+
+# NameRegistered(address to, uint256 node, uint256 cost, uint256 expires, string name)
+
+type NameRegistered @entity {
+  id: ID!
+
+  to: String!
+
+  node: BigInt!
+
+  cost: BigInt!
+
+  expires: BigInt!
+
+  name: String!
+}
+
+  # [string, string, BigNumber] & {
+  #   owner: string;
+  #   approved: string;
+  #   tokenId: BigNumber;
+  # }
+
+type Approval @entity {
+  id: ID!
+
+  owner: String!
+
+  approved: String!
+
+  node: BigInt!
+}
+
+  # [string, string, boolean] & {
+  #   owner: string;
+  #   operator: string;
+  #   approved: boolean;
+  # }
+
+type ApprovalForAll @entity {
+  id: ID!
+
+  owner: String!
+
+  operator: String!
+
+  approved: Boolean!
+}
+  # [BigNumber, string] & { tokenId: BigNumber; resolver: string }
+type NewResolver @entity {
+  id: ID!
+
+  node: BigInt!
+
+  resolver: String!
+}
+
+
+  # [string, BigNumber, BigNumber, string] & {
+  #   to: string;
+  #   tokenId: BigNumber;
+  #   subtokenId: BigNumber;
+  #   name: string;
+  # }
+type NewSubdomain @entity {
+  id: ID!
+
+  to: String!
+
+  node: BigInt!
+
+  subnode: BigInt!
+  
+  name: String!
+}
+
+  # [string, string, BigNumber] & { from: string; to: string; tokenId: BigNumber }
+type Transfer @entity {
+  id: ID!
+
+  from: String!
+
+  to: String!
+
+  node: BigInt!
+}
+
+type NewKey @entity {
+  id: ID!
+
+  keyIndex: String
+
+  key: String
+}
+
+type ResetRecords @entity {
+  id: ID!
+
+  node: BigInt!
+}
+
+type Set @entity {
+  id: ID!
+
+  node: BigInt!
+
+  keyHash: BigInt!
+
+  value: String!
+}
+
+type SetName @entity {
+  id: ID!
+
+  addr: String!
+
+  node: BigInt!
+}
+
+type SetNftName @entity {
+  id: ID!
+
+  nftAddr: String!
+
+  nftNode: BigInt!
+
+  node: BigInt!
+}
+
+type PnsConfigUpdated @entity {
+  id: ID!
+
+  flags: BigInt!
+}
+
+type ControllerConfigUpdated @entity {
+  id: ID!
+
+  flags: BigInt!
+}
+
+
+type ManagerChanged @entity {
+  id: ID!
+
+  manager: String!
+
+  role: Boolean!
+}
+
+type RootOwnershipTransferred @entity {
+  id: ID!
+
+  oldRoot: String!
+
+  newRoot: String!
+}
+
+type MetadataUpdated @entity {
+  id: ID!
+
+  data: [BigInt]!
+}
+
+type NameRenewed @entity {
+  id: ID!
+
+  node: BigInt!
+
+  cost: BigInt!
+
+  expires: BigInt!
+
+  name: String!
+}
+
+type nameRedeem @entity {
+  id:ID!
+
+  name: String!
+
+  owner: String!
+
+  duration: BigInt!
+
+  deadline: BigInt!
+
+  code: String!
+
+  success:Boolean!
+
+  timestamp: Int
+
+  from: String!
+}
+
+type nameRegister @entity {
+  id: ID!
+
+  name: String!
+
+  owner: String!
+
+  duration: BigInt!
+
+  success:Boolean!
+
+  timestamp: Int
+
+  from: String!
+}
+
+type renew @entity {
+  id: ID!
+
+  name: String!
+
+  duration: BigInt!
+
+  success:Boolean!
+
+  timestamp: Int
+
+  from: String!
+}
+
+type renewByManager @entity {
+  id: ID!
+
+  name: String!
+
+  duration: BigInt!
+
+  success:Boolean!
+
+  timestamp: Int
+
+  from: String!
+}
