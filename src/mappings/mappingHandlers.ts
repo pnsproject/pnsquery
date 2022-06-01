@@ -29,49 +29,51 @@ import {
   NameRegister,
 } from "../types/models";
 
-import { BigNumber, Bytes } from "ethers";
+import { BigNumberish, Bytes } from "ethers";
+import { NameRegisterWithConfig } from "../types/models/NameRegisterWithConfig";
+import { NameRegisterByManager } from "../types/models/NameRegisterByManager";
 
-type NewSubdomainEventArgs = [string, BigNumber, BigNumber, string] & {
+type NewSubdomainEventArgs = [string, BigNumberish, BigNumberish, string] & {
   to: string;
-  tokenId: BigNumber;
-  subtokenId: BigNumber;
+  tokenId: BigNumberish;
+  subtokenId: BigNumberish;
   name: string;
 };
 
-type TransferEventArgs = [string, string, BigNumber] & {
+type TransferEventArgs = [string, string, BigNumberish] & {
   from: string;
   to: string;
-  tokenId: BigNumber;
+  tokenId: BigNumberish;
 };
 
-type CapacityUpdatedEventArgs = [BigNumber, BigNumber] & {
-  tokenId: BigNumber;
-  capacity: BigNumber;
+type CapacityUpdatedEventArgs = [BigNumberish, BigNumberish] & {
+  tokenId: BigNumberish;
+  capacity: BigNumberish;
 };
 
-type PriceChangedEventArgs = [BigNumber[], BigNumber[]] & {
-  basePrices: BigNumber[];
-  rentPrices: BigNumber[];
+type PriceChangedEventArgs = [BigNumberish[], BigNumberish[]] & {
+  basePrices: BigNumberish[];
+  rentPrices: BigNumberish[];
 };
 
 type NameRegisteredEventArgs = [
   string,
-  BigNumber,
-  BigNumber,
-  BigNumber,
+  BigNumberish,
+  BigNumberish,
+  BigNumberish,
   string
 ] & {
   to: string;
-  node: BigNumber;
-  cost: BigNumber;
-  expires: BigNumber;
+  node: BigNumberish;
+  cost: BigNumberish;
+  expires: BigNumberish;
   name: string;
 };
 
-type ApprovalEventArgs = [string, string, BigNumber] & {
+type ApprovalEventArgs = [string, string, BigNumberish] & {
   owner: string;
   approved: string;
-  tokenId: BigNumber;
+  tokenId: BigNumberish;
 };
 
 type ApprovalForAllEventArgs = [string, string, boolean] & {
@@ -80,28 +82,26 @@ type ApprovalForAllEventArgs = [string, string, boolean] & {
   approved: boolean;
 };
 
-type NewResolverEventArgs = [BigNumber, string] & {
-  tokenId: BigNumber;
+type NewResolverEventArgs = [BigNumberish, string] & {
+  tokenId: BigNumberish;
   resolver: string;
 };
 
 export async function handleNewSubdomain(
   event: MoonbeamEvent<NewSubdomainEventArgs>
 ): Promise<void> {
-  let nodeId = event.args.subtokenId;
-  let parentId = event.args.tokenId;
-  let subdomain = await Subdomain.get(nodeId.toString());
+  let subdomain = await Subdomain.get(event.args.subtokenId.toString());
 
-  let parent_domain = await Subdomain.get(parentId.toString());
+  let parent_domain = await Subdomain.get(event.args.tokenId.toString());
   let parent_name = "dot";
   if (parent_domain) {
     parent_name = parent_domain.name;
   }
 
   if (!subdomain) {
-    subdomain = new Subdomain(nodeId.toString());
+    subdomain = new Subdomain(event.args.subtokenId.toString());
     subdomain.name = event.args.name + "." + parent_name;
-    subdomain.parent = parentId.toBigInt();
+    subdomain.parent = event.args.tokenId.toString();
     subdomain.owner = event.args.to;
     await subdomain.save();
   }
@@ -109,23 +109,21 @@ export async function handleNewSubdomain(
     event.blockTimestamp.getTime().toString()
   );
   newSubdomain.name = event.args.name;
-  newSubdomain.node = event.args.tokenId.toBigInt();
-  newSubdomain.subnode = event.args.subtokenId.toBigInt();
+  newSubdomain.node = event.args.tokenId.toString();
+  newSubdomain.subnode = event.args.subtokenId.toString();
   newSubdomain.to = event.args.to;
 
-  await subdomain.save();
+  await newSubdomain.save();
 }
 
 export async function handleTransfer(
   event: MoonbeamEvent<TransferEventArgs>
 ): Promise<void> {
-  let nodeId = event.args.tokenId;
-
-  let subdomain = await Subdomain.get(nodeId.toString());
+  let subdomain = await Subdomain.get(event.args.tokenId.toString());
 
   if (subdomain) {
     if (event.args.to == "0x0000000000000000000000000000000000000000") {
-      await store.remove("Subdomain", nodeId.toString());
+      await store.remove("Subdomain", event.args.tokenId.toString());
     } else {
       subdomain.owner = event.args.to;
       await subdomain.save();
@@ -135,7 +133,7 @@ export async function handleTransfer(
   let transfer = new Transfer(event.blockTimestamp.getTime().toString());
 
   transfer.from = event.args.from;
-  transfer.node = event.args.tokenId.toBigInt();
+  transfer.node = event.args.tokenId.toString();
   transfer.to = event.args.to;
 
   await transfer.save();
@@ -144,17 +142,13 @@ export async function handleTransfer(
 export async function handleCapacityUpdated(
   event: MoonbeamEvent<CapacityUpdatedEventArgs>
 ): Promise<void> {
-  const args = event.args;
-
-  let nodeId = args.tokenId;
-
   let capacityChanged = new CapacityChanged(
     event.blockTimestamp.getTime().toString()
   );
 
-  capacityChanged.capacity = args.capacity.toBigInt();
+  capacityChanged.capacity = event.args.capacity.toString();
 
-  capacityChanged.node = nodeId.toString();
+  capacityChanged.node = event.args.tokenId.toString();
 
   await capacityChanged.save();
 }
@@ -162,17 +156,12 @@ export async function handleCapacityUpdated(
 export async function handlePriceChanged(
   event: MoonbeamEvent<PriceChangedEventArgs>
 ): Promise<void> {
-  const args = event.args;
-
-  const basePrices = args.basePrices;
-  const rentPrices = args.rentPrices;
-
   let pricesChanged = new PriceChanged(
     event.blockTimestamp.getTime().toString()
   );
 
-  pricesChanged.basePrices = basePrices.map((x) => x.toBigInt());
-  pricesChanged.rentPrices = rentPrices.map((x) => x.toBigInt());
+  pricesChanged.basePrices = event.args.basePrices.map((x) => x.toString());
+  pricesChanged.rentPrices = event.args.rentPrices.map((x) => x.toString());
 
   await pricesChanged.save();
 }
@@ -186,10 +175,10 @@ export async function handleNameRegistered(
     event.blockTimestamp.getTime().toString()
   );
 
-  nameRegistered.cost = args.cost.toBigInt();
-  nameRegistered.expires = args.expires.toBigInt();
+  nameRegistered.cost = args.cost.toString();
+  nameRegistered.expires = args.expires.toString();
   nameRegistered.name = args.name;
-  nameRegistered.node = args.node.toBigInt();
+  nameRegistered.node = args.node.toString();
   nameRegistered.to = args.to;
 
   await nameRegistered.save();
@@ -201,7 +190,7 @@ export async function handleApproval(
   let approval = new Approval(event.blockTimestamp.getTime().toString());
 
   approval.approved = event.args.approved;
-  approval.node = event.args.tokenId.toBigInt();
+  approval.node = event.args.tokenId.toString();
   approval.owner = event.args.owner;
 
   await approval.save();
@@ -226,34 +215,37 @@ export async function handleNewResolver(
 ): Promise<void> {
   let newResolver = new NewResolver(event.blockTimestamp.getTime().toString());
 
-  newResolver.node = event.args.tokenId.toBigInt();
+  newResolver.node = event.args.tokenId.toString();
   newResolver.resolver = event.args.resolver;
 
   await newResolver.save();
 }
 
-type NewKeyEventArgs = [string, string] & { keyIndex: string; key: string };
+type NewKeyEventArgs = [BigNumberish, BigNumberish] & {
+  keyIndex: BigNumberish;
+  key: BigNumberish;
+};
 
-type ResetRecordsEventArgs = [BigNumber] & { tokenId: BigNumber };
+type ResetRecordsEventArgs = [BigNumberish] & { tokenId: BigNumberish };
 
-type SetEventArgs = [BigNumber, BigNumber, string] & {
-  tokenId: BigNumber;
-  keyHash: BigNumber;
+type SetEventArgs = [BigNumberish, BigNumberish, string] & {
+  tokenId: BigNumberish;
+  keyHash: BigNumberish;
   value: string;
 };
 
-type SetNameEventArgs = [string, BigNumber] & {
+type SetNameEventArgs = [string, BigNumberish] & {
   addr: string;
-  tokenId: BigNumber;
+  tokenId: BigNumberish;
 };
 
-type SetNftNameEventArgs = [string, BigNumber, BigNumber] & {
+type SetNftNameEventArgs = [string, BigNumberish, BigNumberish] & {
   nftAddr: string;
-  nftTokenId: BigNumber;
-  tokenId: BigNumber;
+  nftTokenId: BigNumberish;
+  tokenId: BigNumberish;
 };
 
-type ConfigUpdatedEventArgs = [BigNumber] & { flags: BigNumber };
+type ConfigUpdatedEventArgs = [BigNumberish] & { flags: BigNumberish };
 
 type ManagerChangedEventArgs = [string, boolean] & {
   manager: string;
@@ -290,7 +282,7 @@ export async function handlePnsConfigUpdated(
   let configUpdated = new PnsConfigUpdated(
     event.blockTimestamp.getTime().toString()
   );
-  configUpdated.flags = event.args.flags.toBigInt();
+  configUpdated.flags = event.args.flags.toString();
   await configUpdated.save();
 }
 
@@ -300,7 +292,7 @@ export async function handleControllerConfigUpdated(
   let configUpdated = new ControllerConfigUpdated(
     event.blockTimestamp.getTime().toString()
   );
-  configUpdated.flags = event.args.flags.toBigInt();
+  configUpdated.flags = event.args.flags.toString();
   await configUpdated.save();
 }
 
@@ -309,8 +301,8 @@ export async function handleNewKey(
 ): Promise<void> {
   let newKey = new NewKey(event.blockTimestamp.getTime().toString());
 
-  newKey.key = event.args.key;
-  newKey.keyIndex = event.args.keyIndex;
+  newKey.key = event.args.key.toString();
+  newKey.keyIndex = event.args.keyIndex.toString();
 
   await newKey.save();
 }
@@ -322,7 +314,7 @@ export async function handleResetRecords(
     event.blockTimestamp.getTime().toString()
   );
 
-  resetRecords.node = event.args.tokenId.toBigInt();
+  resetRecords.node = event.args.tokenId.toString();
 
   await resetRecords.save();
 }
@@ -332,8 +324,8 @@ export async function handleSet(
 ): Promise<void> {
   let set = new Set(event.blockTimestamp.getTime().toString());
 
-  set.keyHash = event.args.keyHash.toBigInt();
-  set.node = event.args.tokenId.toBigInt();
+  set.keyHash = event.args.keyHash.toString();
+  set.node = event.args.tokenId.toString();
   set.value = event.args.value;
 
   await set.save();
@@ -345,7 +337,7 @@ export async function handleSetName(
   let setName = new SetName(event.blockTimestamp.getTime().toString());
 
   setName.addr = event.args.addr;
-  setName.node = event.args.tokenId.toBigInt();
+  setName.node = event.args.tokenId.toString();
 
   await setName.save();
 }
@@ -356,13 +348,13 @@ export async function handleSetNftName(
   let setNftName = new SetNftName(event.blockTimestamp.getTime().toString());
 
   setNftName.nftAddr = event.args.nftAddr;
-  setNftName.nftNode = event.args.nftTokenId.toBigInt();
-  setNftName.node = event.args.tokenId.toBigInt();
+  setNftName.nftNode = event.args.nftTokenId.toString();
+  setNftName.node = event.args.tokenId.toString();
 
   await setNftName.save();
 }
 
-type MetadataUpdatedEventArgs = [BigNumber[]] & { data: BigNumber[] };
+type MetadataUpdatedEventArgs = [BigNumberish[]] & { data: BigNumberish[] };
 
 export async function handleMetadataUpdated(
   event: MoonbeamEvent<MetadataUpdatedEventArgs>
@@ -371,15 +363,20 @@ export async function handleMetadataUpdated(
     event.blockTimestamp.getTime().toString()
   );
 
-  meatadataUpdated.data = event.args.data.map((x) => x.toBigInt());
+  meatadataUpdated.data = event.args.data.map((x) => x.toString());
 
   await meatadataUpdated.save();
 }
 
-type NameRenewedEventArgs = [BigNumber, BigNumber, BigNumber, string] & {
-  node: BigNumber;
-  cost: BigNumber;
-  expires: BigNumber;
+type NameRenewedEventArgs = [
+  BigNumberish,
+  BigNumberish,
+  BigNumberish,
+  string
+] & {
+  node: BigNumberish;
+  cost: BigNumberish;
+  expires: BigNumberish;
   name: string;
 };
 export async function handleNameRenewed(
@@ -387,37 +384,43 @@ export async function handleNameRenewed(
 ): Promise<void> {
   let nameRenewed = new NameRenewed(event.blockTimestamp.getTime().toString());
 
-  nameRenewed.node = event.args.node.toBigInt();
-  nameRenewed.cost = event.args.cost.toBigInt();
-  nameRenewed.expires = event.args.expires.toBigInt();
+  nameRenewed.node = event.args.node.toString();
+  nameRenewed.cost = event.args.cost.toString();
+  nameRenewed.expires = event.args.expires.toString();
   nameRenewed.name = event.args.name;
 
   await nameRenewed.save();
 }
 
-type nameRedeemCallArgs = [string, string, BigNumber, BigNumber, Bytes] & {
+type nameRedeemCallArgs = [
+  string,
+  string,
+  BigNumberish,
+  BigNumberish,
+  Bytes
+] & {
   name: string;
   owner: string;
-  duration: BigNumber;
-  deadline: BigNumber;
+  duration: BigNumberish;
+  deadline: BigNumberish;
   code: Bytes;
 };
 
 export async function handleNameRedeem(
   call: MoonbeamCall<nameRedeemCallArgs>
 ): Promise<void> {
-  let nameRenewed = new NameRedeem(call.hash);
+  let nameRedeem = new NameRedeem(call.hash);
 
-  nameRenewed.name = call.args.name;
-  nameRenewed.owner = call.args.owner;
-  nameRenewed.duration = call.args.duration.toBigInt();
-  nameRenewed.deadline = call.args.deadline.toBigInt();
-  nameRenewed.code = hex(call.args.code);
-  nameRenewed.success = call.success;
-  nameRenewed.timestamp = call.timestamp;
-  nameRenewed.from = call.from;
+  nameRedeem.name = call.args.name;
+  nameRedeem.owner = call.args.owner;
+  nameRedeem.duration = call.args.duration.toString();
+  nameRedeem.deadline = call.args.deadline.toString();
+  nameRedeem.code = hex(call.args.code);
+  nameRedeem.success = call.success;
+  nameRedeem.timestamp = call.timestamp;
+  nameRedeem.from = call.from;
 
-  await nameRenewed.save();
+  await nameRedeem.save();
 }
 const HexCharacters: string = "0123456789abcdef";
 
@@ -430,10 +433,10 @@ function hex(bytes: Bytes): string {
   return result;
 }
 
-type nameRegisterCallArgs = [string, string, BigNumber] & {
+type nameRegisterCallArgs = [string, string, BigNumberish] & {
   name: string;
   owner: string;
-  duration: BigNumber;
+  duration: BigNumberish;
 };
 
 export async function handleNameRegister(
@@ -443,7 +446,7 @@ export async function handleNameRegister(
 
   nameRegister.name = call.args.name;
   nameRegister.owner = call.args.owner;
-  nameRegister.duration = call.args.duration.toBigInt();
+  nameRegister.duration = call.args.duration.toString();
   nameRegister.success = call.success;
   nameRegister.timestamp = call.timestamp;
   nameRegister.from = call.from;
@@ -451,73 +454,74 @@ export async function handleNameRegister(
   await nameRegister.save();
 }
 
-// type nameRegisterByManagerCallArgs = [
-//   string,
-//   string,
-//   BigNumber,
-//   BigNumber[],
-//   string[]
-// ] & {
-//   name: string;
-//   owner: string;
-//   duration: BigNumber;
-//   keyHashes: BigNumber[];
-//   values: string[];
-// };
-
-// export async function handleNameRegisterByManager(
-//   call: MoonbeamCall<nameRegisterByManagerCallArgs>
-// ): Promise<void> {
-//   let nameRegisterByManager = new NameRegisterByManager(call.hash);
-
-//   nameRegisterByManager.name = call.args.name;
-//   nameRegisterByManager.owner = call.args.owner;
-//   nameRegisterByManager.duration = call.args.duration.toBigInt();
-//   nameRegisterByManager.keyHashes = call.args.keyHashes.map((x) =>
-//     x.toBigInt()
-//   );
-//   nameRegisterByManager.values = call.args.values;
-//   nameRegisterByManager.success = call.success;
-//   nameRegisterByManager.timestamp = call.timestamp;
-
-//   await nameRegisterByManager.save();
-// }
-
-// type nameRegisterWithConfigCallArgs = [
-//   string,
-//   string,
-//   BigNumber,
-//   BigNumber[],
-//   string[]
-// ] & {
-//   name: string;
-//   owner: string;
-//   duration: BigNumber;
-//   keyHashes: BigNumber[];
-//   values: string[];
-// };
-
-// export async function handleNameRegisterWithConfig(
-//   call: MoonbeamCall<nameRegisterWithConfigCallArgs>
-// ): Promise<void> {
-//   let nameRegisterWithConfig = new NameRegisterWithConfig(call.hash);
-
-//   nameRegisterWithConfig.name = call.args.name;
-//   nameRegisterWithConfig.owner = call.args.owner;
-//   nameRegisterWithConfig.duration = call.args.duration.toBigInt();
-//   nameRegisterWithConfig.keyHashes = call.args.keyHashes.map((x) =>
-//     x.toBigInt()
-//   );
-//   nameRegisterWithConfig.values = call.args.values;
-//   nameRegisterWithConfig.success = call.success;
-//   nameRegisterWithConfig.timestamp = call.timestamp;
-
-//   await nameRegisterWithConfig.save();
-// }
-
-type renewCallArgs = [string, BigNumber] & {
+type nameRegisterByManagerCallArgs = [
+  string,
+  string,
+  BigNumberish,
+  BigNumberish[],
+  BigNumberish[]
+] & {
   name: string;
-  duration: BigNumber;
+  owner: string;
+  duration: BigNumberish;
+  keyHashes: BigNumberish[];
+  values: BigNumberish[];
+};
+
+export async function handleNameRegisterByManager(
+  call: MoonbeamCall<nameRegisterByManagerCallArgs>
+): Promise<void> {
+  let nameRegisterByManager = new NameRegisterByManager(call.hash);
+
+  nameRegisterByManager.name = call.args.name;
+  nameRegisterByManager.owner = call.args.owner;
+  nameRegisterByManager.duration = call.args.duration.toString();
+  nameRegisterByManager.keyHashes = call.args.keyHashes.map((x) =>
+    x.toString()
+  );
+  nameRegisterByManager.values = call.args[4].map((x) => x.toString());
+  nameRegisterByManager.success = call.success;
+  nameRegisterByManager.timestamp = call.timestamp;
+
+  await nameRegisterByManager.save();
+}
+
+type nameRegisterWithConfigCallArgs = [
+  string,
+  string,
+  BigNumberish,
+  BigNumberish[],
+  BigNumberish[]
+] & {
+  name: string;
+  owner: string;
+  duration: BigNumberish;
+  keyHashes: BigNumberish[];
+  values: BigNumberish[];
+};
+
+export async function handleNameRegisterWithConfig(
+  call: MoonbeamCall<nameRegisterWithConfigCallArgs>
+): Promise<void> {
+  let nameRegisterWithConfig = new NameRegisterWithConfig(call.hash);
+
+  nameRegisterWithConfig.name = call.args.name;
+  nameRegisterWithConfig.owner = call.args.owner;
+  nameRegisterWithConfig.duration = call.args.duration.toString();
+  nameRegisterWithConfig.keyHashes = call.args.keyHashes.map((x) =>
+    x.toString()
+  );
+  // NOTE: values 和call.args的values方法冲重名了，所以在这里使用args[4]
+  nameRegisterWithConfig.values = call.args[4].map((x) => x.toString());
+  nameRegisterWithConfig.success = call.success;
+  nameRegisterWithConfig.timestamp = call.timestamp;
+
+  await nameRegisterWithConfig.save();
+}
+
+type renewCallArgs = [string, BigNumberish] & {
+  name: string;
+  duration: BigNumberish;
 };
 
 export async function handleRenew(
@@ -526,7 +530,7 @@ export async function handleRenew(
   let renew = new Renew(call.hash);
 
   renew.name = call.args.name;
-  renew.duration = call.args.duration.toBigInt();
+  renew.duration = call.args.duration.toString();
   renew.success = call.success;
   renew.timestamp = call.timestamp;
   renew.from = call.from;
@@ -534,9 +538,9 @@ export async function handleRenew(
   await renew.save();
 }
 
-type renewByManagerCallArgs = [string, BigNumber] & {
+type renewByManagerCallArgs = [string, BigNumberish] & {
   name: string;
-  duration: BigNumber;
+  duration: BigNumberish;
 };
 
 export async function handleRenewByManager(
@@ -545,7 +549,7 @@ export async function handleRenewByManager(
   let renewByManager = new RenewByManager(call.hash);
 
   renewByManager.name = call.args.name;
-  renewByManager.duration = call.args.duration.toBigInt();
+  renewByManager.duration = call.args.duration.toString();
   renewByManager.success = call.success;
   renewByManager.timestamp = call.timestamp;
   renewByManager.from = call.from;
