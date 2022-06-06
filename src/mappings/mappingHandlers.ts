@@ -1,7 +1,7 @@
 import {
-  MoonbeamCall,
-  MoonbeamEvent,
-} from "@subql/contract-processors/dist/moonbeam";
+  FrontierEvmCall,
+  FrontierEvmEvent,
+} from "@subql/contract-processors/dist/frontierEvm";
 import {
   Subdomain,
   PriceChanged,
@@ -88,7 +88,7 @@ type NewResolverEventArgs = [BigNumberish, string] & {
 };
 
 export async function handleNewSubdomain(
-  event: MoonbeamEvent<NewSubdomainEventArgs>
+  event: FrontierEvmEvent<NewSubdomainEventArgs>
 ): Promise<void> {
   let subdomain = await Subdomain.get(event.args.subtokenId.toString());
 
@@ -117,7 +117,7 @@ export async function handleNewSubdomain(
 }
 
 export async function handleTransfer(
-  event: MoonbeamEvent<TransferEventArgs>
+  event: FrontierEvmEvent<TransferEventArgs>
 ): Promise<void> {
   let subdomain = await Subdomain.get(event.args.tokenId.toString());
 
@@ -140,7 +140,7 @@ export async function handleTransfer(
 }
 
 export async function handleCapacityUpdated(
-  event: MoonbeamEvent<CapacityUpdatedEventArgs>
+  event: FrontierEvmEvent<CapacityUpdatedEventArgs>
 ): Promise<void> {
   let capacityChanged = new CapacityChanged(
     event.blockTimestamp.getTime().toString()
@@ -154,7 +154,7 @@ export async function handleCapacityUpdated(
 }
 
 export async function handlePriceChanged(
-  event: MoonbeamEvent<PriceChangedEventArgs>
+  event: FrontierEvmEvent<PriceChangedEventArgs>
 ): Promise<void> {
   let pricesChanged = new PriceChanged(
     event.blockTimestamp.getTime().toString()
@@ -167,7 +167,7 @@ export async function handlePriceChanged(
 }
 
 export async function handleNameRegistered(
-  event: MoonbeamEvent<NameRegisteredEventArgs>
+  event: FrontierEvmEvent<NameRegisteredEventArgs>
 ): Promise<void> {
   const args = event.args;
 
@@ -185,7 +185,7 @@ export async function handleNameRegistered(
 }
 
 export async function handleApproval(
-  event: MoonbeamEvent<ApprovalEventArgs>
+  event: FrontierEvmEvent<ApprovalEventArgs>
 ): Promise<void> {
   let approval = new Approval(event.blockTimestamp.getTime().toString());
 
@@ -197,7 +197,7 @@ export async function handleApproval(
 }
 
 export async function handleApprovalForAll(
-  event: MoonbeamEvent<ApprovalForAllEventArgs>
+  event: FrontierEvmEvent<ApprovalForAllEventArgs>
 ): Promise<void> {
   let approvalForAll = new ApprovalForAll(
     event.blockTimestamp.getTime().toString()
@@ -211,7 +211,7 @@ export async function handleApprovalForAll(
 }
 
 export async function handleNewResolver(
-  event: MoonbeamEvent<NewResolverEventArgs>
+  event: FrontierEvmEvent<NewResolverEventArgs>
 ): Promise<void> {
   let newResolver = new NewResolver(event.blockTimestamp.getTime().toString());
 
@@ -252,7 +252,7 @@ type ManagerChangedEventArgs = [string, boolean] & {
   role: boolean;
 };
 export async function handleManagerChanged(
-  event: MoonbeamEvent<ManagerChangedEventArgs>
+  event: FrontierEvmEvent<ManagerChangedEventArgs>
 ): Promise<void> {
   let managerChanged = new ManagerChanged(
     event.blockTimestamp.getTime().toString()
@@ -266,7 +266,7 @@ type RootOwnershipTransferredEventArgs = [string, string] & {
   newRoot: string;
 };
 export async function handleRootOwnershipTransferred(
-  event: MoonbeamEvent<RootOwnershipTransferredEventArgs>
+  event: FrontierEvmEvent<RootOwnershipTransferredEventArgs>
 ): Promise<void> {
   let entity = new RootOwnershipTransferred(
     event.blockTimestamp.getTime().toString()
@@ -277,7 +277,7 @@ export async function handleRootOwnershipTransferred(
 }
 
 export async function handlePnsConfigUpdated(
-  event: MoonbeamEvent<ConfigUpdatedEventArgs>
+  event: FrontierEvmEvent<ConfigUpdatedEventArgs>
 ): Promise<void> {
   let configUpdated = new PnsConfigUpdated(
     event.blockTimestamp.getTime().toString()
@@ -287,7 +287,7 @@ export async function handlePnsConfigUpdated(
 }
 
 export async function handleControllerConfigUpdated(
-  event: MoonbeamEvent<ConfigUpdatedEventArgs>
+  event: FrontierEvmEvent<ConfigUpdatedEventArgs>
 ): Promise<void> {
   let configUpdated = new ControllerConfigUpdated(
     event.blockTimestamp.getTime().toString()
@@ -297,7 +297,7 @@ export async function handleControllerConfigUpdated(
 }
 
 export async function handleNewKey(
-  event: MoonbeamEvent<NewKeyEventArgs>
+  event: FrontierEvmEvent<NewKeyEventArgs>
 ): Promise<void> {
   let newKey = new NewKey(event.blockTimestamp.getTime().toString());
 
@@ -308,7 +308,7 @@ export async function handleNewKey(
 }
 
 export async function handleResetRecords(
-  event: MoonbeamEvent<ResetRecordsEventArgs>
+  event: FrontierEvmEvent<ResetRecordsEventArgs>
 ): Promise<void> {
   let resetRecords = new ResetRecords(
     event.blockTimestamp.getTime().toString()
@@ -320,7 +320,7 @@ export async function handleResetRecords(
 }
 
 export async function handleSet(
-  event: MoonbeamEvent<SetEventArgs>
+  event: FrontierEvmEvent<SetEventArgs>
 ): Promise<void> {
   let set = new Set(event.blockTimestamp.getTime().toString());
 
@@ -332,7 +332,7 @@ export async function handleSet(
 }
 
 export async function handleSetName(
-  event: MoonbeamEvent<SetNameEventArgs>
+  event: FrontierEvmEvent<SetNameEventArgs>
 ): Promise<void> {
   let setName = new SetName(event.blockTimestamp.getTime().toString());
 
@@ -343,7 +343,7 @@ export async function handleSetName(
 }
 
 export async function handleSetNftName(
-  event: MoonbeamEvent<SetNftNameEventArgs>
+  event: FrontierEvmEvent<SetNftNameEventArgs>
 ): Promise<void> {
   let setNftName = new SetNftName(event.blockTimestamp.getTime().toString());
 
@@ -357,7 +357,7 @@ export async function handleSetNftName(
 type MetadataUpdatedEventArgs = [BigNumberish[]] & { data: BigNumberish[] };
 
 export async function handleMetadataUpdated(
-  event: MoonbeamEvent<MetadataUpdatedEventArgs>
+  event: FrontierEvmEvent<MetadataUpdatedEventArgs>
 ): Promise<void> {
   let meatadataUpdated = new MetadataUpdated(
     event.blockTimestamp.getTime().toString()
@@ -380,7 +380,7 @@ type NameRenewedEventArgs = [
   name: string;
 };
 export async function handleNameRenewed(
-  event: MoonbeamEvent<NameRenewedEventArgs>
+  event: FrontierEvmEvent<NameRenewedEventArgs>
 ): Promise<void> {
   let nameRenewed = new NameRenewed(event.blockTimestamp.getTime().toString());
 
@@ -407,7 +407,7 @@ type nameRedeemCallArgs = [
 };
 
 export async function handleNameRedeem(
-  call: MoonbeamCall<nameRedeemCallArgs>
+  call: FrontierEvmCall<nameRedeemCallArgs>
 ): Promise<void> {
   let nameRedeem = new NameRedeem(call.hash);
 
@@ -440,7 +440,7 @@ type nameRegisterCallArgs = [string, string, BigNumberish] & {
 };
 
 export async function handleNameRegister(
-  call: MoonbeamCall<nameRegisterCallArgs>
+  call: FrontierEvmCall<nameRegisterCallArgs>
 ): Promise<void> {
   let nameRegister = new NameRegister(call.hash);
 
@@ -469,7 +469,7 @@ type nameRegisterByManagerCallArgs = [
 };
 
 export async function handleNameRegisterByManager(
-  call: MoonbeamCall<nameRegisterByManagerCallArgs>
+  call: FrontierEvmCall<nameRegisterByManagerCallArgs>
 ): Promise<void> {
   let nameRegisterByManager = new NameRegisterByManager(call.hash);
 
@@ -501,7 +501,7 @@ type nameRegisterWithConfigCallArgs = [
 };
 
 export async function handleNameRegisterWithConfig(
-  call: MoonbeamCall<nameRegisterWithConfigCallArgs>
+  call: FrontierEvmCall<nameRegisterWithConfigCallArgs>
 ): Promise<void> {
   let nameRegisterWithConfig = new NameRegisterWithConfig(call.hash);
 
@@ -525,7 +525,7 @@ type renewCallArgs = [string, BigNumberish] & {
 };
 
 export async function handleRenew(
-  call: MoonbeamCall<renewCallArgs>
+  call: FrontierEvmCall<renewCallArgs>
 ): Promise<void> {
   let renew = new Renew(call.hash);
 
@@ -544,7 +544,7 @@ type renewByManagerCallArgs = [string, BigNumberish] & {
 };
 
 export async function handleRenewByManager(
-  call: MoonbeamCall<renewByManagerCallArgs>
+  call: FrontierEvmCall<renewByManagerCallArgs>
 ): Promise<void> {
   let renewByManager = new RenewByManager(call.hash);
 

@@ -19,22 +19,22 @@
   "author": "Cupnfish",
   "license": "Apache-2.0",
   "resolutions": {
-    "@polkadot/api": "8.6.2",
-    "@polkadot/types": "8.6.2",
-    "@polkadot/util": "^9.3.1"
-  },
-  "dependencies": {
-    "moonbeam-types-bundle": "latest"
+    "@polkadot/api": "^8.2.1",
+    "@polkadot/util": "9.0.1",
+    "@terra-money/terra.js": "^3.0.11"
   },
   "devDependencies": {
-    "@polkadot/api": "8.6.2",
-    "@subql/cli": "latest",
-    "@subql/types": "latest",
-    "typescript": "latest",
-    "ethers": "latest",
-    "@subql/contract-processors": "latest"
+    "@polkadot/api": "^8.2.1",
+    "@subql/cli": "^1.0.1",
+    "@subql/contract-processors": "^0.6.0",
+    "@subql/types": "^1.1.0",
+    "ethers": "^5.6.8",
+    "typescript": "^4.7.3"
   },
   "exports": {
     "chaintypes": "./src/chaintypes.ts"
+  },
+  "dependencies": {
+    "moonbeam-types-bundle": "^2.0.4"
   }
 }
