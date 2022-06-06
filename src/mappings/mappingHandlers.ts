@@ -1,7 +1,7 @@
 import {
   MoonbeamCall,
   MoonbeamEvent,
-} from "@subql/contract-processors/dist/moonbeam";
+} from "@subql/moonbeam-evm-processor";
 import {
   Subdomain,
   PriceChanged,
