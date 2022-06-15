@@ -116,6 +116,8 @@ type NewKey @entity {
   keyIndex: String
 
   key: String
+
+  timestamp: Int
 }
 
 type ResetRecords @entity {

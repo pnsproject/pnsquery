@@ -127,7 +127,7 @@ dataSources:
           kind: substrate/MoonbeamEvent
           filter:
             topics:
-              - NewKey(string indexed keyIndex,string key)        
+              - NewKey(uint256 tokenId,string indexed keyIndex,string key)        
         - handler: handleResetRecords
           kind: substrate/MoonbeamEvent
           filter:

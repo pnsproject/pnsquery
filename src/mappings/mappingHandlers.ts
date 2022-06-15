@@ -1,7 +1,4 @@
-import {
-  MoonbeamCall,
-  MoonbeamEvent,
-} from "@subql/moonbeam-evm-processor";
+import { MoonbeamCall, MoonbeamEvent } from "@subql/moonbeam-evm-processor";
 import {
   Subdomain,
   PriceChanged,
@@ -221,9 +218,10 @@ export async function handleNewResolver(
   await newResolver.save();
 }
 
-type NewKeyEventArgs = [BigNumberish, BigNumberish] & {
-  keyIndex: BigNumberish;
-  key: BigNumberish;
+type NewKeyEventArgs = [BigNumberish, string, string] & {
+  tokenId: BigNumberish;
+  keyIndex: string;
+  key: string;
 };
 
 type ResetRecordsEventArgs = [BigNumberish] & { tokenId: BigNumberish };
@@ -299,10 +297,11 @@ export async function handleControllerConfigUpdated(
 export async function handleNewKey(
   event: MoonbeamEvent<NewKeyEventArgs>
 ): Promise<void> {
-  let newKey = new NewKey(event.blockTimestamp.getTime().toString());
+  let newKey = new NewKey(event.args.tokenId.toString());
 
-  newKey.key = event.args.key.toString();
-  newKey.keyIndex = event.args.keyIndex.toString();
+  newKey.key = event.args.key;
+  newKey.keyIndex = event.args.keyIndex;
+  newKey.timestamp = event.blockTimestamp.getTime();
 
   await newKey.save();
 }
