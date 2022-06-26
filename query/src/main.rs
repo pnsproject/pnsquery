@@ -42,7 +42,7 @@ async fn run_query(offset: i32) -> cynic::GraphQlResponse<Domains> {
     });
 
     reqwest::Client::new()
-        .post("http://localhost:3000")
+        .post("https://api.subquery.network/sq/pnsproject/pnsql")
         .run_graphql(query)
         .await
         .unwrap()
@@ -76,9 +76,6 @@ mod queries {
     #[derive(cynic::QueryFragment, Debug, Serialize)]
     pub struct Subdomain {
         pub id: String,
-        pub name: Option<String>,
-        pub owner: Option<String>,
-        pub parent: Option<String>,
     }
 }
 

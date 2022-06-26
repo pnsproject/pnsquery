@@ -1,5 +1,36 @@
 [
   {
+    "inputs": [
+      {
+        "internalType": "contract IPNS",
+        "name": "pns",
+        "type": "address"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_baseNode",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_basePrices",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "uint256[]",
+        "name": "_rentPrices",
+        "type": "uint256[]"
+      },
+      {
+        "internalType": "address",
+        "name": "_priceFeed",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "constructor"
+  },
+  {
     "anonymous": false,
     "inputs": [
       {
@@ -29,6 +60,25 @@
       }
     ],
     "name": "ConfigUpdated",
+    "type": "event"
+  },
+  {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "manager",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "bool",
+        "name": "role",
+        "type": "bool"
+      }
+    ],
+    "name": "ManagerChanged",
     "type": "event"
   },
   {
@@ -132,6 +182,116 @@
     "type": "event"
   },
   {
+    "anonymous": false,
+    "inputs": [
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "oldRoot",
+        "type": "address"
+      },
+      {
+        "indexed": true,
+        "internalType": "address",
+        "name": "newRoot",
+        "type": "address"
+      }
+    ],
+    "name": "RootOwnershipTransferred",
+    "type": "event"
+  },
+  {
+    "inputs": [],
+    "name": "BASE_NODE",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "DEFAULT_DOMAIN_CAPACITY",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "FLAGS",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "GRACE_PERIOD",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_REGISTRATION_DURATION",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "MIN_REGISTRATION_LENGTH",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "_pns",
+    "outputs": [
+      {
+        "internalType": "contract IPNS",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -202,6 +362,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "capacityPrice",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -229,6 +402,25 @@
       }
     ],
     "name": "expire",
+    "outputs": [
+      {
+        "internalType": "uint256",
+        "name": "",
+        "type": "uint256"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "delta",
+        "type": "uint256"
+      }
+    ],
+    "name": "getCapacityPrice",
     "outputs": [
       {
         "internalType": "uint256",
@@ -274,6 +466,25 @@
     "inputs": [
       {
         "internalType": "address",
+        "name": "addr",
+        "type": "address"
+      }
+    ],
+    "name": "isManager",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
         "name": "to",
         "type": "address"
       },
@@ -296,13 +507,51 @@
   {
     "inputs": [
       {
+        "internalType": "bytes[]",
+        "name": "data",
+        "type": "bytes[]"
+      }
+    ],
+    "name": "multicall",
+    "outputs": [
+      {
+        "internalType": "bytes[]",
+        "name": "results",
+        "type": "bytes[]"
+      }
+    ],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256",
+        "name": "tokenId",
+        "type": "uint256"
+      }
+    ],
+    "name": "nameExpired",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "string",
         "name": "name",
         "type": "string"
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "to",
         "type": "address"
       },
       {
@@ -341,7 +590,7 @@
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "to",
         "type": "address"
       },
       {
@@ -370,12 +619,17 @@
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "to",
         "type": "address"
       },
       {
         "internalType": "uint256",
         "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "data",
         "type": "uint256"
       },
       {
@@ -409,12 +663,17 @@
       },
       {
         "internalType": "address",
-        "name": "owner",
+        "name": "to",
         "type": "address"
       },
       {
         "internalType": "uint256",
         "name": "duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "data",
         "type": "uint256"
       },
       {
@@ -456,6 +715,43 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [],
+    "name": "priceFeed",
+    "outputs": [
+      {
+        "internalType": "contract AggregatorV3Interface",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes32",
+        "name": "datahash",
+        "type": "bytes32"
+      },
+      {
+        "internalType": "bytes",
+        "name": "code",
+        "type": "bytes"
+      }
+    ],
+    "name": "recoverKey",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "pure",
     "type": "function"
   },
   {
@@ -543,6 +839,19 @@
     "type": "function"
   },
   {
+    "inputs": [],
+    "name": "root",
+    "outputs": [
+      {
+        "internalType": "address",
+        "name": "",
+        "type": "address"
+      }
+    ],
+    "stateMutability": "view",
+    "type": "function"
+  },
+  {
     "inputs": [
       {
         "internalType": "uint256",
@@ -581,19 +890,139 @@
   {
     "inputs": [
       {
+        "internalType": "uint256",
+        "name": "_flags",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_min_length",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_min_duration",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_grace_period",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_default_capacity",
+        "type": "uint256"
+      },
+      {
+        "internalType": "uint256",
+        "name": "_capacity_price",
+        "type": "uint256"
+      },
+      {
+        "internalType": "address",
+        "name": "_price_feed",
+        "type": "address"
+      }
+    ],
+    "name": "setContractConfig",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "manager",
+        "type": "address"
+      },
+      {
+        "internalType": "bool",
+        "name": "role",
+        "type": "bool"
+      }
+    ],
+    "name": "setManager",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
         "internalType": "uint256[]",
-        "name": "basePrices",
+        "name": "tokenIds",
+        "type": "uint256[]"
+      },
+      {
+        "components": [
+          {
+            "internalType": "uint256",
+            "name": "origin",
+            "type": "uint256"
+          },
+          {
+            "internalType": "uint64",
+            "name": "expire",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "capacity",
+            "type": "uint64"
+          },
+          {
+            "internalType": "uint64",
+            "name": "children",
+            "type": "uint64"
+          }
+        ],
+        "internalType": "struct Controller.Record[]",
+        "name": "data",
+        "type": "tuple[]"
+      }
+    ],
+    "name": "setMetadataBatch",
+    "outputs": [],
+    "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "uint256[]",
+        "name": "_basePrices",
         "type": "uint256[]"
       },
       {
         "internalType": "uint256[]",
-        "name": "rentPrices",
+        "name": "_rentPrices",
         "type": "uint256[]"
       }
     ],
     "name": "setPrices",
     "outputs": [],
     "stateMutability": "nonpayable",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "bytes4",
+        "name": "interfaceId",
+        "type": "bytes4"
+      }
+    ],
+    "name": "supportsInterface",
+    "outputs": [
+      {
+        "internalType": "bool",
+        "name": "",
+        "type": "bool"
+      }
+    ],
+    "stateMutability": "view",
     "type": "function"
   },
   {
@@ -618,6 +1047,19 @@
       }
     ],
     "stateMutability": "view",
+    "type": "function"
+  },
+  {
+    "inputs": [
+      {
+        "internalType": "address",
+        "name": "newOwner",
+        "type": "address"
+      }
+    ],
+    "name": "transferRootOwnership",
+    "outputs": [],
+    "stateMutability": "nonpayable",
     "type": "function"
   }
 ]

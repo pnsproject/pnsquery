@@ -399,7 +399,7 @@ type nameRedeemCallArgs = [
   Bytes
 ] & {
   name: string;
-  owner: string;
+  to: string;
   duration: BigNumberish;
   deadline: BigNumberish;
   code: Bytes;
@@ -411,7 +411,7 @@ export async function handleNameRedeem(
   let nameRedeem = new NameRedeem(call.hash);
 
   nameRedeem.name = call.args.name;
-  nameRedeem.owner = call.args.owner;
+  nameRedeem.owner = call.args.to;
   nameRedeem.duration = call.args.duration.toString();
   nameRedeem.deadline = call.args.deadline.toString();
   nameRedeem.code = hex(call.args.code);
@@ -434,7 +434,7 @@ function hex(bytes: Bytes): string {
 
 type nameRegisterCallArgs = [string, string, BigNumberish] & {
   name: string;
-  owner: string;
+  to: string;
   duration: BigNumberish;
 };
 
@@ -444,7 +444,7 @@ export async function handleNameRegister(
   let nameRegister = new NameRegister(call.hash);
 
   nameRegister.name = call.args.name;
-  nameRegister.owner = call.args.owner;
+  nameRegister.owner = call.args.to;
   nameRegister.duration = call.args.duration.toString();
   nameRegister.success = call.success;
   nameRegister.timestamp = call.timestamp;
@@ -457,12 +457,14 @@ type nameRegisterByManagerCallArgs = [
   string,
   string,
   BigNumberish,
+  BigNumberish,
   BigNumberish[],
   BigNumberish[]
 ] & {
   name: string;
-  owner: string;
+  to: string;
   duration: BigNumberish;
+  data: BigNumberish;
   keyHashes: BigNumberish[];
   values: BigNumberish[];
 };
@@ -473,7 +475,8 @@ export async function handleNameRegisterByManager(
   let nameRegisterByManager = new NameRegisterByManager(call.hash);
 
   nameRegisterByManager.name = call.args.name;
-  nameRegisterByManager.owner = call.args.owner;
+  nameRegisterByManager.owner = call.args.to;
+  nameRegisterByManager.data = call.args.data.toString();
   nameRegisterByManager.duration = call.args.duration.toString();
   nameRegisterByManager.keyHashes = call.args.keyHashes.map((x) =>
     x.toString()
@@ -489,12 +492,14 @@ type nameRegisterWithConfigCallArgs = [
   string,
   string,
   BigNumberish,
+  BigNumberish,
   BigNumberish[],
   BigNumberish[]
 ] & {
   name: string;
-  owner: string;
+  to: string;
   duration: BigNumberish;
+  data: BigNumberish;
   keyHashes: BigNumberish[];
   values: BigNumberish[];
 };
@@ -505,7 +510,8 @@ export async function handleNameRegisterWithConfig(
   let nameRegisterWithConfig = new NameRegisterWithConfig(call.hash);
 
   nameRegisterWithConfig.name = call.args.name;
-  nameRegisterWithConfig.owner = call.args.owner;
+  nameRegisterWithConfig.owner = call.args.to;
+  nameRegisterWithConfig.data = call.args.data.toString();
   nameRegisterWithConfig.duration = call.args.duration.toString();
   nameRegisterWithConfig.keyHashes = call.args.keyHashes.map((x) =>
     x.toString()

@@ -278,6 +278,8 @@ type nameRegisterByManager @entity {
 
   timestamp: Int
 
+  data: String
+
   from: String
 
   keyHashes: [String]
@@ -296,6 +298,8 @@ type nameRegisterWithConfig @entity {
   success:Boolean
 
   timestamp: Int
+
+  data: String
 
   from: String
 

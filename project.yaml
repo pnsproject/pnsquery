@@ -1,6 +1,6 @@
 specVersion: 1.0.0
 name: pns
-version: 0.1.2
+version: 0.1.3
 runner:
   node:
     name: '@subql/node'
@@ -19,12 +19,12 @@ network:
     file: ./dist/chaintypes.js
 dataSources:
   - kind: substrate/Moonbeam
-    startBlock: 895458
+    startBlock: 1308426
     processor:
       file: ./dist/moonbeamEvm.js
       options:
         abi: controller
-        address: '0x268C915680Da0b74D2EE520866716a7a295fEdf6'
+        address: '0x2dF0fC48837e69D26eFA50fD3baE86977903B697'
     assets:
       controller:
         file: ./controller.abi.json
@@ -64,11 +64,11 @@ dataSources:
         - handler: handleNameRedeem
           kind: substrate/MoonbeamCall
           filter:
-            function: nameRedeem(string name,address owner,uint256 duration,uint256 deadline,bytes code)
+            function: nameRedeem(string name,address to,uint256 duration,uint256 deadline,bytes code)
         - handler: handleNameRegister
           kind: substrate/MoonbeamCall
           filter:
-            function: nameRegister(string name,address owner,uint256 duration)
+            function: nameRegister(string name,address to,uint256 duration)
         - handler: handleRenew
           kind: substrate/MoonbeamCall
           filter:
@@ -76,11 +76,11 @@ dataSources:
         - handler: handleNameRegisterByManager
           kind: substrate/MoonbeamCall
           filter:
-            function: nameRegisterByManager(string,address,uint256,uint256[],string[])
+            function: nameRegisterByManager(string,address,uint256,uint256,uint256[],string[])
         - handler: handleNameRegisterWithConfig
           kind: substrate/MoonbeamCall
           filter:
-            function: nameRegisterWithConfig(string,address,uint256,uint256[],string[])
+            function: nameRegisterWithConfig(string,address,uint256,uint256,uint256[],string[])
         - handler: handleRenewByManager
           kind: substrate/MoonbeamCall
           filter:
