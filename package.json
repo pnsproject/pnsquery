@@ -26,6 +26,7 @@
   "dependencies": {
     "@polkadot/api-augment": "^8.7.1",
     "@subql/moonbeam-evm-processor": "latest",
+    "js-sha3": "^0.8.0",
     "moonbeam-types-bundle": "^2.0.4"
   },
   "devDependencies": {

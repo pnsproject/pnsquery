@@ -6,6 +6,45 @@ type Subdomain @entity {
   parent: String
   
   owner: String
+  
+  expires: String
+
+  removed: Boolean
+
+  infos: [SubdomainInfo]!
+}
+
+type SubdomainInfo @jsonField {
+  tx_hash: String
+  
+  owner: String
+
+  from: String
+
+  duration: String
+
+  cost: String
+
+  timestamp: Int!
+
+  success: Boolean
+
+  type: String!
+}
+
+enum SubdomainType {
+  # 兑换码兑换的
+  Redeem
+  # 续费的
+  Renew
+  # 通过注册的
+  Register
+  # 通过管理员续费的
+  RenewByManager
+  # 通过管理员注册的
+  RegisterByManager
+  # 交易
+  Transfer
 }
 
 type CapacityChanged @entity {
@@ -24,21 +63,7 @@ type PriceChanged @entity {
   rentPrices: [String]
 }
 
-# NameRegistered(address to, uint256 node, uint256 cost, uint256 expires, string name)
 
-type NameRegistered @entity {
-  id: ID!
-
-  to: String
-
-  node: String
-
-  cost: String
-
-  expires: String
-
-  name: String
-}
 
   # [string, string, BigNumber] & {
   #   owner: string;
@@ -55,6 +80,7 @@ type Approval @entity {
 
   node: String
 }
+
 
   # [string, string, boolean] & {
   #   owner: string;
@@ -80,35 +106,6 @@ type NewResolver @entity {
   resolver: String
 }
 
-
-  # [string, BigNumber, BigNumber, string] & {
-  #   to: string;
-  #   tokenId: BigNumber;
-  #   subtokenId: BigNumber;
-  #   name: string;
-  # }
-type NewSubdomain @entity {
-  id: ID!
-
-  to: String
-
-  node: String
-
-  subnode: String
-  
-  name: String
-}
-
-  # [string, string, BigNumber] & { from: string; to: string; tokenId: BigNumber }
-type Transfer @entity {
-  id: ID!
-
-  from: String
-
-  to: String
-
-  node: String
-}
 
 type NewKey @entity {
   id: ID!
@@ -187,126 +184,4 @@ type MetadataUpdated @entity {
   id: ID!
 
   data: [String]
-}
-
-type NameRenewed @entity {
-  id: ID!
-
-  node: String
-
-  cost: String
-
-  expires: String
-
-  name: String
-}
-
-type nameRedeem @entity {
-  id:ID!
-
-  name: String
-
-  owner: String
-
-  duration: String
-
-  deadline: String
-
-  code: String
-
-  success:Boolean
-
-  timestamp: Int
-
-  from: String
-}
-
-type nameRegister @entity {
-  id: ID!
-
-  name: String
-
-  owner: String
-
-  duration: String
-
-  success:Boolean
-
-  timestamp: Int
-
-  from: String
-}
-
-type renew @entity {
-  id: ID!
-
-  name: String
-
-  duration: String
-
-  success:Boolean
-
-  timestamp: Int
-
-  from: String
-}
-
-type renewByManager @entity {
-  id: ID!
-
-  name: String
-
-  duration: String
-
-  success:Boolean
-
-  timestamp: Int
-
-  from: String
-}
-
-type nameRegisterByManager @entity {
-  id: ID!
-
-  name: String
-
-  owner: String
-
-  duration: String
-
-  success:Boolean
-
-  timestamp: Int
-
-  data: String
-
-  from: String
-
-  keyHashes: [String]
-
-  values: [String]
-
-}
-
-type nameRegisterWithConfig @entity {
-  id: ID!
-
-  name: String
-
-  owner: String
-
-  success:Boolean
-
-  timestamp: Int
-
-  data: String
-
-  from: String
-
-  duration: String
-
-  keyHashes: [String]
-
-  values: [String]
-
 }

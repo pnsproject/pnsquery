@@ -65,22 +65,10 @@ dataSources:
           kind: substrate/MoonbeamCall
           filter:
             function: nameRedeem(string name,address to,uint256 duration,uint256 deadline,bytes code)
-        - handler: handleNameRegister
-          kind: substrate/MoonbeamCall
-          filter:
-            function: nameRegister(string name,address to,uint256 duration)
-        - handler: handleRenew
-          kind: substrate/MoonbeamCall
-          filter:
-            function: renew(string name,uint256 duration)
         - handler: handleNameRegisterByManager
           kind: substrate/MoonbeamCall
           filter:
             function: nameRegisterByManager(string,address,uint256,uint256,uint256[],string[])
-        - handler: handleNameRegisterWithConfig
-          kind: substrate/MoonbeamCall
-          filter:
-            function: nameRegisterWithConfig(string,address,uint256,uint256,uint256[],string[])
         - handler: handleRenewByManager
           kind: substrate/MoonbeamCall
           filter:

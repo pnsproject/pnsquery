@@ -2,10 +2,7 @@ import { MoonbeamCall, MoonbeamEvent } from "@subql/moonbeam-evm-processor";
 import {
   Subdomain,
   PriceChanged,
-  NameRegistered,
   CapacityChanged,
-  NewSubdomain,
-  Transfer,
   Approval,
   ApprovalForAll,
   NewResolver,
@@ -19,16 +16,10 @@ import {
   RootOwnershipTransferred,
   ControllerConfigUpdated,
   MetadataUpdated,
-  NameRenewed,
-  NameRedeem,
-  Renew,
-  RenewByManager,
-  NameRegister,
 } from "../types/models";
 
-import { BigNumberish, Bytes } from "ethers";
-import { NameRegisterWithConfig } from "../types/models/NameRegisterWithConfig";
-import { NameRegisterByManager } from "../types/models/NameRegisterByManager";
+import { BigNumber, BigNumberish, Bytes } from "ethers";
+import { SubdomainType } from "../types";
 
 type NewSubdomainEventArgs = [string, BigNumberish, BigNumberish, string] & {
   to: string;
@@ -91,26 +82,25 @@ export async function handleNewSubdomain(
 
   let parent_domain = await Subdomain.get(event.args.tokenId.toString());
   let parent_name = "dot";
+
   if (parent_domain) {
-    parent_name = parent_domain.name;
+    if (parent_domain.name) {
+      parent_name = parent_domain.name;
+    }
   }
+
+  logger.info("parent_name: " + parent_name);
 
   if (!subdomain) {
     subdomain = new Subdomain(event.args.subtokenId.toString());
-    subdomain.name = event.args.name + "." + parent_name;
-    subdomain.parent = event.args.tokenId.toString();
-    subdomain.owner = event.args.to;
-    await subdomain.save();
+    subdomain.infos = [];
   }
-  let newSubdomain = new NewSubdomain(
-    event.blockTimestamp.getTime().toString()
-  );
-  newSubdomain.name = event.args.name;
-  newSubdomain.node = event.args.tokenId.toString();
-  newSubdomain.subnode = event.args.subtokenId.toString();
-  newSubdomain.to = event.args.to;
 
-  await newSubdomain.save();
+  subdomain.removed = false;
+  subdomain.name = event.args.name + "." + parent_name;
+  subdomain.parent = event.args.tokenId.toString();
+  subdomain.owner = event.args.to;
+  await subdomain.save();
 }
 
 export async function handleTransfer(
@@ -118,22 +108,37 @@ export async function handleTransfer(
 ): Promise<void> {
   let subdomain = await Subdomain.get(event.args.tokenId.toString());
 
-  if (subdomain) {
-    if (event.args.to == "0x0000000000000000000000000000000000000000") {
-      await store.remove("Subdomain", event.args.tokenId.toString());
-    } else {
-      subdomain.owner = event.args.to;
-      await subdomain.save();
-    }
+  if (!subdomain) {
+    subdomain = new Subdomain(event.args.tokenId.toString());
+    subdomain.infos = [];
   }
 
-  let transfer = new Transfer(event.blockTimestamp.getTime().toString());
+  if (event.args.to == "0x0000000000000000000000000000000000000000") {
+    subdomain.removed = true;
+  }
+  subdomain.owner = event.args.to;
+  let flag = false;
 
-  transfer.from = event.args.from;
-  transfer.node = event.args.tokenId.toString();
-  transfer.to = event.args.to;
+  subdomain.infos.forEach((info) => {
+    if (info.tx_hash === event.transactionHash) {
+      info.from = event.args.from;
+      info.owner = event.args.to;
+      info.timestamp = event.blockTimestamp.getTime();
+      flag = true;
+    }
+  });
 
-  await transfer.save();
+  if (!flag) {
+    subdomain.infos.push({
+      tx_hash: event.transactionHash,
+      from: event.args.from,
+      owner: event.args.to,
+      timestamp: event.blockTimestamp.getTime(),
+      type: SubdomainType.Transfer,
+    });
+  }
+
+  await subdomain.save();
 }
 
 export async function handleCapacityUpdated(
@@ -168,17 +173,50 @@ export async function handleNameRegistered(
 ): Promise<void> {
   const args = event.args;
 
-  let nameRegistered = new NameRegistered(
-    event.blockTimestamp.getTime().toString()
-  );
+  let subdomain = await Subdomain.get(args.node.toString());
 
-  nameRegistered.cost = args.cost.toString();
-  nameRegistered.expires = args.expires.toString();
-  nameRegistered.name = args.name;
-  nameRegistered.node = args.node.toString();
-  nameRegistered.to = args.to;
+  if (!subdomain) {
+    subdomain = new Subdomain(event.args.node.toString());
+    subdomain.infos = [];
+  }
 
-  await nameRegistered.save();
+  subdomain.owner = args.to;
+  subdomain.expires = args.expires.toString();
+  let flag = false;
+  subdomain.infos.forEach((info) => {
+    if (info.tx_hash === event.transactionHash) {
+      info.owner = args.to;
+      info.timestamp = event.blockTimestamp.getTime();
+      info.duration = BigNumber.from(args.expires)
+        .sub(event.blockTimestamp.getTime())
+        .toString();
+      info.cost = args.cost.toString();
+      flag = true;
+    }
+  });
+
+  if (!flag) {
+    let nameRegistered = {
+      tx_hash: event.transactionHash,
+      owner: event.args.to,
+      timestamp: event.blockTimestamp.getTime(),
+      type: null,
+      duration: BigNumber.from(args.expires)
+        .sub(event.blockTimestamp.getTime())
+        .toString(),
+      cost: args.cost.toString(),
+    };
+
+    if (BigNumber.from(args.cost).eq(0)) {
+      nameRegistered.type = SubdomainType.RegisterByManager;
+    } else {
+      nameRegistered.type = SubdomainType.Register;
+    }
+
+    subdomain.infos.push(nameRegistered);
+  }
+
+  await subdomain.save();
 }
 
 export async function handleApproval(
@@ -381,14 +419,42 @@ type NameRenewedEventArgs = [
 export async function handleNameRenewed(
   event: MoonbeamEvent<NameRenewedEventArgs>
 ): Promise<void> {
-  let nameRenewed = new NameRenewed(event.blockTimestamp.getTime().toString());
+  let subdomain = await Subdomain.get(event.args.node.toString());
+  if (!subdomain) {
+    subdomain = new Subdomain(event.args.node.toString());
+    subdomain.infos = [];
+  }
+  subdomain.expires = event.args.expires.toString();
 
-  nameRenewed.node = event.args.node.toString();
-  nameRenewed.cost = event.args.cost.toString();
-  nameRenewed.expires = event.args.expires.toString();
-  nameRenewed.name = event.args.name;
+  let flag = false;
 
-  await nameRenewed.save();
+  subdomain.infos.forEach((info) => {
+    if (info.tx_hash === event.transactionHash) {
+      info.cost = event.args.cost.toString();
+      info.duration = BigNumber.from(event.args.expires)
+        .sub(event.blockTimestamp.getTime())
+        .toString();
+      info.type = SubdomainType.Renew;
+      info.timestamp = event.blockTimestamp.getTime();
+      flag = true;
+    }
+  });
+
+  if (!flag) {
+    let nameRenewed = {
+      tx_hash: event.transactionHash,
+      cost: event.args.cost.toString(),
+      duration: BigNumber.from(event.args.expires)
+        .sub(event.blockTimestamp.getTime())
+        .toString(),
+      type: SubdomainType.Renew,
+      timestamp: event.blockTimestamp.getTime(),
+    };
+
+    subdomain.infos.push(nameRenewed);
+  }
+
+  await subdomain.save();
 }
 
 type nameRedeemCallArgs = [
@@ -408,18 +474,48 @@ type nameRedeemCallArgs = [
 export async function handleNameRedeem(
   call: MoonbeamCall<nameRedeemCallArgs>
 ): Promise<void> {
-  let nameRedeem = new NameRedeem(call.hash);
+  let namehash = getNamehash(suffixTld(call.args.name));
 
-  nameRedeem.name = call.args.name;
-  nameRedeem.owner = call.args.to;
-  nameRedeem.duration = call.args.duration.toString();
-  nameRedeem.deadline = call.args.deadline.toString();
-  nameRedeem.code = hex(call.args.code);
-  nameRedeem.success = call.success;
-  nameRedeem.timestamp = call.timestamp;
-  nameRedeem.from = call.from;
+  let token = BigNumber.from(namehash).toString();
 
-  await nameRedeem.save();
+  logger.info(token);
+
+  let subdomain = await Subdomain.get(token);
+
+  if (!subdomain) {
+    subdomain = new Subdomain(token);
+    subdomain.infos = [];
+  }
+
+  if (call.success) {
+    if (call.timestamp) {
+      subdomain.expires = BigNumber.from(call.args.duration)
+        .add(call.timestamp)
+        .toString();
+    }
+  }
+
+  let flag = false;
+
+  subdomain.infos.forEach((x) => {
+    if (x.tx_hash === call.hash) {
+      x.type = SubdomainType.Redeem;
+      x.success = call.success;
+      x.timestamp = call.timestamp;
+      flag = true;
+    }
+  });
+
+  if (!flag) {
+    let nameRedeem = {
+      success: call.success,
+      timestamp: call.timestamp,
+      type: SubdomainType.Redeem,
+    };
+    subdomain.infos.push(nameRedeem);
+  }
+
+  await subdomain.save();
 }
 const HexCharacters: string = "0123456789abcdef";
 
@@ -430,27 +526,6 @@ function hex(bytes: Bytes): string {
     result += HexCharacters[(v & 0xf0) >> 4] + HexCharacters[v & 0x0f];
   }
   return result;
-}
-
-type nameRegisterCallArgs = [string, string, BigNumberish] & {
-  name: string;
-  to: string;
-  duration: BigNumberish;
-};
-
-export async function handleNameRegister(
-  call: MoonbeamCall<nameRegisterCallArgs>
-): Promise<void> {
-  let nameRegister = new NameRegister(call.hash);
-
-  nameRegister.name = call.args.name;
-  nameRegister.owner = call.args.to;
-  nameRegister.duration = call.args.duration.toString();
-  nameRegister.success = call.success;
-  nameRegister.timestamp = call.timestamp;
-  nameRegister.from = call.from;
-
-  await nameRegister.save();
 }
 
 type nameRegisterByManagerCallArgs = [
@@ -472,75 +547,42 @@ type nameRegisterByManagerCallArgs = [
 export async function handleNameRegisterByManager(
   call: MoonbeamCall<nameRegisterByManagerCallArgs>
 ): Promise<void> {
-  let nameRegisterByManager = new NameRegisterByManager(call.hash);
+  let token = BigNumber.from(getNamehash(suffixTld(call.args.name))).toString();
+  let subdomain = await Subdomain.get(token);
 
-  nameRegisterByManager.name = call.args.name;
-  nameRegisterByManager.owner = call.args.to;
-  nameRegisterByManager.data = call.args.data.toString();
-  nameRegisterByManager.duration = call.args.duration.toString();
-  nameRegisterByManager.keyHashes = call.args.keyHashes.map((x) =>
-    x.toString()
-  );
-  nameRegisterByManager.values = call.args[4].map((x) => x.toString());
-  nameRegisterByManager.success = call.success;
-  nameRegisterByManager.timestamp = call.timestamp;
+  if (!subdomain) {
+    subdomain = new Subdomain(token);
+    subdomain.infos = [];
+  }
+  if (call.success) {
+    if (call.timestamp) {
+      subdomain.expires = BigNumber.from(call.args.duration)
+        .add(call.timestamp)
+        .toString();
+    }
+  }
 
-  await nameRegisterByManager.save();
-}
+  let flag = false;
 
-type nameRegisterWithConfigCallArgs = [
-  string,
-  string,
-  BigNumberish,
-  BigNumberish,
-  BigNumberish[],
-  BigNumberish[]
-] & {
-  name: string;
-  to: string;
-  duration: BigNumberish;
-  data: BigNumberish;
-  keyHashes: BigNumberish[];
-  values: BigNumberish[];
-};
+  subdomain.infos.forEach((x) => {
+    if (x.tx_hash === call.hash) {
+      x.type = SubdomainType.Register;
+      x.success = call.success;
+      x.timestamp = call.timestamp;
+      flag = true;
+    }
+  });
 
-export async function handleNameRegisterWithConfig(
-  call: MoonbeamCall<nameRegisterWithConfigCallArgs>
-): Promise<void> {
-  let nameRegisterWithConfig = new NameRegisterWithConfig(call.hash);
+  if (!flag) {
+    let nameRegister = {
+      success: call.success,
+      timestamp: call.timestamp,
+      type: SubdomainType.Register,
+    };
+    subdomain.infos.push(nameRegister);
+  }
 
-  nameRegisterWithConfig.name = call.args.name;
-  nameRegisterWithConfig.owner = call.args.to;
-  nameRegisterWithConfig.data = call.args.data.toString();
-  nameRegisterWithConfig.duration = call.args.duration.toString();
-  nameRegisterWithConfig.keyHashes = call.args.keyHashes.map((x) =>
-    x.toString()
-  );
-  // NOTE: values 和call.args的values方法冲重名了，所以在这里使用args[4]
-  nameRegisterWithConfig.values = call.args[4].map((x) => x.toString());
-  nameRegisterWithConfig.success = call.success;
-  nameRegisterWithConfig.timestamp = call.timestamp;
-
-  await nameRegisterWithConfig.save();
-}
-
-type renewCallArgs = [string, BigNumberish] & {
-  name: string;
-  duration: BigNumberish;
-};
-
-export async function handleRenew(
-  call: MoonbeamCall<renewCallArgs>
-): Promise<void> {
-  let renew = new Renew(call.hash);
-
-  renew.name = call.args.name;
-  renew.duration = call.args.duration.toString();
-  renew.success = call.success;
-  renew.timestamp = call.timestamp;
-  renew.from = call.from;
-
-  await renew.save();
+  await subdomain.save();
 }
 
 type renewByManagerCallArgs = [string, BigNumberish] & {
@@ -551,13 +593,71 @@ type renewByManagerCallArgs = [string, BigNumberish] & {
 export async function handleRenewByManager(
   call: MoonbeamCall<renewByManagerCallArgs>
 ): Promise<void> {
-  let renewByManager = new RenewByManager(call.hash);
+  let token = BigNumber.from(getNamehash(suffixTld(call.args.name))).toString();
+  let subdomain = await Subdomain.get(token);
 
-  renewByManager.name = call.args.name;
-  renewByManager.duration = call.args.duration.toString();
-  renewByManager.success = call.success;
-  renewByManager.timestamp = call.timestamp;
-  renewByManager.from = call.from;
+  if (!subdomain) {
+    subdomain = new Subdomain(token);
+    subdomain.infos = [];
+  }
+  if (call.success) {
+    if (call.timestamp) {
+      subdomain.expires = BigNumber.from(call.args.duration)
+        .add(call.timestamp)
+        .toString();
+    }
+  }
 
-  await renewByManager.save();
+  let flag = false;
+
+  subdomain.infos.forEach((x) => {
+    if (x.tx_hash === call.hash) {
+      x.type = SubdomainType.RenewByManager;
+      x.success = call.success;
+      x.timestamp = call.timestamp;
+      x.duration = call.args.duration.toString();
+      x.from = call.from;
+      flag = true;
+    }
+  });
+
+  if (!flag) {
+    let nameRenewByManager = {
+      success: call.success,
+      timestamp: call.timestamp,
+      type: SubdomainType.RenewByManager,
+      duration: call.args.duration.toString(),
+      from: call.from,
+    };
+    subdomain.infos.push(nameRenewByManager);
+  }
+
+  await subdomain.save();
+}
+
+import { keccak_256 } from "js-sha3";
+
+function getNamehash(name: string): string {
+  let node = "0000000000000000000000000000000000000000000000000000000000000000";
+
+  if (name) {
+    let labels = name.split(".");
+    logger.info("labels: " + labels);
+    for (let i = labels.length - 1; i >= 0; i--) {
+      let labelSha = keccak_256(labels[i]);
+      logger.info(node + labelSha);
+      let msg = Buffer.from(node + labelSha, "hex").toString("hex");
+      logger.info("msg: " + msg);
+      node = keccak_256(msg);
+      logger.info("node: " + node);
+    }
+  }
+
+  logger.info(node);
+
+  return "0x" + node;
+}
+
+export function suffixTld(label: string): string {
+  return label.replace(".dot", "") + ".dot";
 }

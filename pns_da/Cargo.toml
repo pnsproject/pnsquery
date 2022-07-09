@@ -1,5 +1,5 @@
 [package]
-name = "query"
+name = "pns_da"
 version = "0.1.0"
 edition = "2021"
 
@@ -13,3 +13,4 @@ reqwest = { version = "0.11", features = ["json"] }
 time = "0.3"
 serde_json = { version = "1", features = ["preserve_order"] }
 serde = "1"
+plotters = "0.3.2"
