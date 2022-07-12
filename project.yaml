@@ -74,7 +74,7 @@ dataSources:
           filter:
             function: renewByManager(string name,uint256 duration)
   - kind: substrate/Moonbeam
-    startBlock: 895456
+    startBlock: 1308426
     processor:
       file: ./dist/moonbeamEvm.js
       options:

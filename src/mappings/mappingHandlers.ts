@@ -16,6 +16,7 @@ import {
   RootOwnershipTransferred,
   ControllerConfigUpdated,
   MetadataUpdated,
+  SubdomainInfo,
 } from "../types/models";
 
 import { BigNumber, BigNumberish, Bytes } from "ethers";
@@ -93,7 +94,6 @@ export async function handleNewSubdomain(
 
   if (!subdomain) {
     subdomain = new Subdomain(event.args.subtokenId.toString());
-    subdomain.infos = [];
   }
 
   subdomain.removed = false;
@@ -110,32 +110,42 @@ export async function handleTransfer(
 
   if (!subdomain) {
     subdomain = new Subdomain(event.args.tokenId.toString());
-    subdomain.infos = [];
   }
 
   if (event.args.to == "0x0000000000000000000000000000000000000000") {
     subdomain.removed = true;
   }
   subdomain.owner = event.args.to;
-  let flag = false;
 
-  subdomain.infos.forEach((info) => {
-    if (info.tx_hash === event.transactionHash) {
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+
+  let flag = true;
+  if (infos) {
+    let info = infos.find((info) => {
+      info.id === event.transactionHash;
+    });
+    if (info) {
       info.from = event.args.from;
       info.owner = event.args.to;
-      info.timestamp = event.blockTimestamp.getTime();
-      flag = true;
+      info.timestamp = BigNumber.from(
+        event.blockTimestamp.getTime()
+      ).toBigInt();
+      await info.save();
+      flag = false;
     }
-  });
+  }
 
-  if (!flag) {
-    subdomain.infos.push({
-      tx_hash: event.transactionHash,
+  if (flag) {
+    let info = SubdomainInfo.create({
+      id: event.transactionHash,
       from: event.args.from,
       owner: event.args.to,
-      timestamp: event.blockTimestamp.getTime(),
+      timestamp: BigNumber.from(event.blockTimestamp.getTime()).toBigInt(),
       type: SubdomainType.Transfer,
+      currentId: subdomain.id,
     });
+
+    await info.save();
   }
 
   await subdomain.save();
@@ -177,33 +187,35 @@ export async function handleNameRegistered(
 
   if (!subdomain) {
     subdomain = new Subdomain(event.args.node.toString());
-    subdomain.infos = [];
   }
 
   subdomain.owner = args.to;
-  subdomain.expires = args.expires.toString();
-  let flag = false;
-  subdomain.infos.forEach((info) => {
-    if (info.tx_hash === event.transactionHash) {
-      info.owner = args.to;
-      info.timestamp = event.blockTimestamp.getTime();
-      info.duration = BigNumber.from(args.expires)
-        .sub(event.blockTimestamp.getTime())
-        .toString();
-      info.cost = args.cost.toString();
-      flag = true;
-    }
+  subdomain.expires = BigNumber.from(args.expires).toBigInt();
+
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+
+  let info = infos.find((info) => {
+    info.id === event.transactionHash;
   });
 
-  if (!flag) {
+  if (info) {
+    info.owner = args.to;
+    info.timestamp = BigNumber.from(event.blockTimestamp.getTime()).toBigInt();
+    info.duration = BigNumber.from(args.expires)
+      .sub(event.blockTimestamp.getTime())
+      .toBigInt();
+    info.cost = args.cost.toString();
+    await info.save();
+  } else {
     let nameRegistered = {
-      tx_hash: event.transactionHash,
+      currentId: subdomain.id,
+      id: event.transactionHash,
       owner: event.args.to,
-      timestamp: event.blockTimestamp.getTime(),
+      timestamp: BigNumber.from(event.blockTimestamp.getTime()).toBigInt(),
       type: null,
       duration: BigNumber.from(args.expires)
         .sub(event.blockTimestamp.getTime())
-        .toString(),
+        .toBigInt(),
       cost: args.cost.toString(),
     };
 
@@ -213,7 +225,9 @@ export async function handleNameRegistered(
       nameRegistered.type = SubdomainType.Register;
     }
 
-    subdomain.infos.push(nameRegistered);
+    let info = SubdomainInfo.create(nameRegistered);
+
+    await info.save();
   }
 
   await subdomain.save();
@@ -422,36 +436,37 @@ export async function handleNameRenewed(
   let subdomain = await Subdomain.get(event.args.node.toString());
   if (!subdomain) {
     subdomain = new Subdomain(event.args.node.toString());
-    subdomain.infos = [];
   }
-  subdomain.expires = event.args.expires.toString();
+  subdomain.expires = BigNumber.from(event.args.expires).toBigInt();
 
-  let flag = false;
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
-  subdomain.infos.forEach((info) => {
-    if (info.tx_hash === event.transactionHash) {
-      info.cost = event.args.cost.toString();
-      info.duration = BigNumber.from(event.args.expires)
-        .sub(event.blockTimestamp.getTime())
-        .toString();
-      info.type = SubdomainType.Renew;
-      info.timestamp = event.blockTimestamp.getTime();
-      flag = true;
-    }
+  let info = infos.find((info) => {
+    info.id === event.transactionHash;
   });
 
-  if (!flag) {
+  if (info) {
+    info.cost = event.args.cost.toString();
+    info.duration = BigNumber.from(event.args.expires)
+      .sub(event.blockTimestamp.getTime())
+      .toBigInt();
+    info.type = SubdomainType.Renew;
+    info.timestamp = BigNumber.from(event.blockTimestamp.getTime()).toBigInt();
+    await info.save();
+  } else {
     let nameRenewed = {
-      tx_hash: event.transactionHash,
+      currentId: subdomain.id,
+      id: event.transactionHash,
       cost: event.args.cost.toString(),
       duration: BigNumber.from(event.args.expires)
         .sub(event.blockTimestamp.getTime())
-        .toString(),
+        .toBigInt(),
       type: SubdomainType.Renew,
-      timestamp: event.blockTimestamp.getTime(),
+      timestamp: BigNumber.from(event.blockTimestamp.getTime()).toBigInt(),
     };
 
-    subdomain.infos.push(nameRenewed);
+    let info = SubdomainInfo.create(nameRenewed);
+    await info.save();
   }
 
   await subdomain.save();
@@ -484,35 +499,36 @@ export async function handleNameRedeem(
 
   if (!subdomain) {
     subdomain = new Subdomain(token);
-    subdomain.infos = [];
   }
 
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
-        .toString();
+        .toBigInt();
     }
   }
 
-  let flag = false;
-
-  subdomain.infos.forEach((x) => {
-    if (x.tx_hash === call.hash) {
-      x.type = SubdomainType.Redeem;
-      x.success = call.success;
-      x.timestamp = call.timestamp;
-      flag = true;
-    }
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+  let info = infos.find((x) => {
+    x.id === call.hash;
   });
 
-  if (!flag) {
+  if (info) {
+    info.type = SubdomainType.Redeem;
+    info.success = call.success;
+    info.timestamp = BigNumber.from(call.timestamp).toBigInt();
+    await info.save();
+  } else {
     let nameRedeem = {
+      currentId: subdomain.id,
+      id: call.hash,
       success: call.success,
-      timestamp: call.timestamp,
+      timestamp: BigNumber.from(call.timestamp).toBigInt(),
       type: SubdomainType.Redeem,
     };
-    subdomain.infos.push(nameRedeem);
+    let info = SubdomainInfo.create(nameRedeem);
+    await info.save();
   }
 
   await subdomain.save();
@@ -552,34 +568,36 @@ export async function handleNameRegisterByManager(
 
   if (!subdomain) {
     subdomain = new Subdomain(token);
-    subdomain.infos = [];
   }
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
-        .toString();
+        .toBigInt();
     }
   }
 
-  let flag = false;
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
-  subdomain.infos.forEach((x) => {
-    if (x.tx_hash === call.hash) {
-      x.type = SubdomainType.Register;
-      x.success = call.success;
-      x.timestamp = call.timestamp;
-      flag = true;
-    }
+  let info = infos.find((x) => {
+    x.id === call.hash;
   });
 
-  if (!flag) {
+  if (info) {
+    info.type = SubdomainType.Register;
+    info.success = call.success;
+    info.timestamp = BigNumber.from(call.timestamp).toBigInt();
+    await info.save();
+  } else {
     let nameRegister = {
+      currentId: subdomain.id,
+      id: call.hash,
       success: call.success,
-      timestamp: call.timestamp,
+      timestamp: BigNumber.from(call.timestamp).toBigInt(),
       type: SubdomainType.Register,
     };
-    subdomain.infos.push(nameRegister);
+    let info = SubdomainInfo.create(nameRegister);
+    await info.save();
   }
 
   await subdomain.save();
@@ -598,38 +616,38 @@ export async function handleRenewByManager(
 
   if (!subdomain) {
     subdomain = new Subdomain(token);
-    subdomain.infos = [];
   }
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
-        .toString();
+        .toBigInt();
     }
   }
 
-  let flag = false;
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
-  subdomain.infos.forEach((x) => {
-    if (x.tx_hash === call.hash) {
-      x.type = SubdomainType.RenewByManager;
-      x.success = call.success;
-      x.timestamp = call.timestamp;
-      x.duration = call.args.duration.toString();
-      x.from = call.from;
-      flag = true;
-    }
+  let info = infos.find((x) => {
+    x.id === call.hash;
   });
 
-  if (!flag) {
+  if (info) {
+    info.type = SubdomainType.RenewByManager;
+    info.success = call.success;
+    info.timestamp = BigNumber.from(call.timestamp).toBigInt();
+    info.duration = BigNumber.from(call.args.duration).toBigInt();
+    await info.save();
+  } else {
     let nameRenewByManager = {
+      currentId: subdomain.id,
+      id: call.hash,
       success: call.success,
-      timestamp: call.timestamp,
+      timestamp: BigNumber.from(call.timestamp).toBigInt(),
       type: SubdomainType.RenewByManager,
-      duration: call.args.duration.toString(),
-      from: call.from,
+      duration: BigNumber.from(call.args.duration).toBigInt(),
     };
-    subdomain.infos.push(nameRenewByManager);
+    let info = SubdomainInfo.create(nameRenewByManager);
+    await info.save();
   }
 
   await subdomain.save();
@@ -637,23 +655,18 @@ export async function handleRenewByManager(
 
 import { keccak_256 } from "js-sha3";
 
+// TODO: get namehash 计算结果与链上的计算方式不一致
 function getNamehash(name: string): string {
   let node = "0000000000000000000000000000000000000000000000000000000000000000";
 
   if (name) {
     let labels = name.split(".");
-    logger.info("labels: " + labels);
+
     for (let i = labels.length - 1; i >= 0; i--) {
       let labelSha = keccak_256(labels[i]);
-      logger.info(node + labelSha);
-      let msg = Buffer.from(node + labelSha, "hex").toString("hex");
-      logger.info("msg: " + msg);
-      node = keccak_256(msg);
-      logger.info("node: " + node);
+      node = keccak_256(Buffer.from(node + labelSha, "hex"));
     }
   }
-
-  logger.info(node);
 
   return "0x" + node;
 }
