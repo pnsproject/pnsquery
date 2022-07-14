@@ -90,8 +90,6 @@ export async function handleNewSubdomain(
     }
   }
 
-  logger.info("parent_name: " + parent_name);
-
   if (!subdomain) {
     subdomain = new Subdomain(event.args.subtokenId.toString());
   }
@@ -117,6 +115,8 @@ export async function handleTransfer(
   }
   subdomain.owner = event.args.to;
 
+  await subdomain.save();
+
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
   let flag = true;
@@ -128,7 +128,7 @@ export async function handleTransfer(
       info.from = event.args.from;
       info.owner = event.args.to;
       info.timestamp = BigNumber.from(
-        event.blockTimestamp.getTime()
+        event.blockTimestamp.getUTCSeconds()
       ).toBigInt();
       await info.save();
       flag = false;
@@ -140,22 +140,22 @@ export async function handleTransfer(
       id: event.transactionHash,
       from: event.args.from,
       owner: event.args.to,
-      timestamp: BigNumber.from(event.blockTimestamp.getTime()).toBigInt(),
+      timestamp: BigNumber.from(
+        event.blockTimestamp.getUTCSeconds()
+      ).toBigInt(),
       type: SubdomainType.Transfer,
       currentId: subdomain.id,
     });
 
     await info.save();
   }
-
-  await subdomain.save();
 }
 
 export async function handleCapacityUpdated(
   event: MoonbeamEvent<CapacityUpdatedEventArgs>
 ): Promise<void> {
   let capacityChanged = new CapacityChanged(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
 
   capacityChanged.capacity = event.args.capacity.toString();
@@ -169,7 +169,7 @@ export async function handlePriceChanged(
   event: MoonbeamEvent<PriceChangedEventArgs>
 ): Promise<void> {
   let pricesChanged = new PriceChanged(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
 
   pricesChanged.basePrices = event.args.basePrices.map((x) => x.toString());
@@ -192,17 +192,20 @@ export async function handleNameRegistered(
   subdomain.owner = args.to;
   subdomain.expires = BigNumber.from(args.expires).toBigInt();
 
+  await subdomain.save();
+
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
   let info = infos.find((info) => {
     info.id === event.transactionHash;
   });
-
   if (info) {
     info.owner = args.to;
-    info.timestamp = BigNumber.from(event.blockTimestamp.getTime()).toBigInt();
+    info.timestamp = BigNumber.from(
+      event.blockTimestamp.getUTCSeconds()
+    ).toBigInt();
     info.duration = BigNumber.from(args.expires)
-      .sub(event.blockTimestamp.getTime())
+      .sub(event.blockTimestamp.getUTCSeconds())
       .toBigInt();
     info.cost = args.cost.toString();
     await info.save();
@@ -211,14 +214,15 @@ export async function handleNameRegistered(
       currentId: subdomain.id,
       id: event.transactionHash,
       owner: event.args.to,
-      timestamp: BigNumber.from(event.blockTimestamp.getTime()).toBigInt(),
+      timestamp: BigNumber.from(
+        event.blockTimestamp.getUTCSeconds()
+      ).toBigInt(),
       type: null,
       duration: BigNumber.from(args.expires)
-        .sub(event.blockTimestamp.getTime())
+        .sub(event.blockTimestamp.getUTCSeconds())
         .toBigInt(),
       cost: args.cost.toString(),
     };
-
     if (BigNumber.from(args.cost).eq(0)) {
       nameRegistered.type = SubdomainType.RegisterByManager;
     } else {
@@ -229,14 +233,12 @@ export async function handleNameRegistered(
 
     await info.save();
   }
-
-  await subdomain.save();
 }
 
 export async function handleApproval(
   event: MoonbeamEvent<ApprovalEventArgs>
 ): Promise<void> {
-  let approval = new Approval(event.blockTimestamp.getTime().toString());
+  let approval = new Approval(event.blockTimestamp.getUTCSeconds().toString());
 
   approval.approved = event.args.approved;
   approval.node = event.args.tokenId.toString();
@@ -249,7 +251,7 @@ export async function handleApprovalForAll(
   event: MoonbeamEvent<ApprovalForAllEventArgs>
 ): Promise<void> {
   let approvalForAll = new ApprovalForAll(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
 
   approvalForAll.approved = event.args.approved;
@@ -262,7 +264,9 @@ export async function handleApprovalForAll(
 export async function handleNewResolver(
   event: MoonbeamEvent<NewResolverEventArgs>
 ): Promise<void> {
-  let newResolver = new NewResolver(event.blockTimestamp.getTime().toString());
+  let newResolver = new NewResolver(
+    event.blockTimestamp.getUTCSeconds().toString()
+  );
 
   newResolver.node = event.args.tokenId.toString();
   newResolver.resolver = event.args.resolver;
@@ -305,7 +309,7 @@ export async function handleManagerChanged(
   event: MoonbeamEvent<ManagerChangedEventArgs>
 ): Promise<void> {
   let managerChanged = new ManagerChanged(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
   managerChanged.manager = event.args.manager;
   managerChanged.role = event.args.role;
@@ -319,7 +323,7 @@ export async function handleRootOwnershipTransferred(
   event: MoonbeamEvent<RootOwnershipTransferredEventArgs>
 ): Promise<void> {
   let entity = new RootOwnershipTransferred(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
   entity.oldRoot = event.args.oldRoot;
   entity.newRoot = event.args.newRoot;
@@ -330,7 +334,7 @@ export async function handlePnsConfigUpdated(
   event: MoonbeamEvent<ConfigUpdatedEventArgs>
 ): Promise<void> {
   let configUpdated = new PnsConfigUpdated(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
   configUpdated.flags = event.args.flags.toString();
   await configUpdated.save();
@@ -340,7 +344,7 @@ export async function handleControllerConfigUpdated(
   event: MoonbeamEvent<ConfigUpdatedEventArgs>
 ): Promise<void> {
   let configUpdated = new ControllerConfigUpdated(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
   configUpdated.flags = event.args.flags.toString();
   await configUpdated.save();
@@ -353,7 +357,7 @@ export async function handleNewKey(
 
   newKey.key = event.args.key;
   newKey.keyIndex = event.args.keyIndex;
-  newKey.timestamp = event.blockTimestamp.getTime();
+  newKey.timestamp = event.blockTimestamp.getUTCSeconds();
 
   await newKey.save();
 }
@@ -362,7 +366,7 @@ export async function handleResetRecords(
   event: MoonbeamEvent<ResetRecordsEventArgs>
 ): Promise<void> {
   let resetRecords = new ResetRecords(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
 
   resetRecords.node = event.args.tokenId.toString();
@@ -373,7 +377,7 @@ export async function handleResetRecords(
 export async function handleSet(
   event: MoonbeamEvent<SetEventArgs>
 ): Promise<void> {
-  let set = new Set(event.blockTimestamp.getTime().toString());
+  let set = new Set(event.blockTimestamp.getUTCSeconds().toString());
 
   set.keyHash = event.args.keyHash.toString();
   set.node = event.args.tokenId.toString();
@@ -385,7 +389,7 @@ export async function handleSet(
 export async function handleSetName(
   event: MoonbeamEvent<SetNameEventArgs>
 ): Promise<void> {
-  let setName = new SetName(event.blockTimestamp.getTime().toString());
+  let setName = new SetName(event.blockTimestamp.getUTCSeconds().toString());
 
   setName.addr = event.args.addr;
   setName.node = event.args.tokenId.toString();
@@ -396,7 +400,9 @@ export async function handleSetName(
 export async function handleSetNftName(
   event: MoonbeamEvent<SetNftNameEventArgs>
 ): Promise<void> {
-  let setNftName = new SetNftName(event.blockTimestamp.getTime().toString());
+  let setNftName = new SetNftName(
+    event.blockTimestamp.getUTCSeconds().toString()
+  );
 
   setNftName.nftAddr = event.args.nftAddr;
   setNftName.nftNode = event.args.nftTokenId.toString();
@@ -411,7 +417,7 @@ export async function handleMetadataUpdated(
   event: MoonbeamEvent<MetadataUpdatedEventArgs>
 ): Promise<void> {
   let meatadataUpdated = new MetadataUpdated(
-    event.blockTimestamp.getTime().toString()
+    event.blockTimestamp.getUTCSeconds().toString()
   );
 
   meatadataUpdated.data = event.args.data.map((x) => x.toString());
@@ -438,6 +444,7 @@ export async function handleNameRenewed(
     subdomain = new Subdomain(event.args.node.toString());
   }
   subdomain.expires = BigNumber.from(event.args.expires).toBigInt();
+  await subdomain.save();
 
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
@@ -448,10 +455,12 @@ export async function handleNameRenewed(
   if (info) {
     info.cost = event.args.cost.toString();
     info.duration = BigNumber.from(event.args.expires)
-      .sub(event.blockTimestamp.getTime())
+      .sub(event.blockTimestamp.getUTCSeconds())
       .toBigInt();
     info.type = SubdomainType.Renew;
-    info.timestamp = BigNumber.from(event.blockTimestamp.getTime()).toBigInt();
+    info.timestamp = BigNumber.from(
+      event.blockTimestamp.getUTCSeconds()
+    ).toBigInt();
     await info.save();
   } else {
     let nameRenewed = {
@@ -459,17 +468,17 @@ export async function handleNameRenewed(
       id: event.transactionHash,
       cost: event.args.cost.toString(),
       duration: BigNumber.from(event.args.expires)
-        .sub(event.blockTimestamp.getTime())
+        .sub(event.blockTimestamp.getUTCSeconds())
         .toBigInt(),
       type: SubdomainType.Renew,
-      timestamp: BigNumber.from(event.blockTimestamp.getTime()).toBigInt(),
+      timestamp: BigNumber.from(
+        event.blockTimestamp.getUTCSeconds()
+      ).toBigInt(),
     };
 
     let info = SubdomainInfo.create(nameRenewed);
     await info.save();
   }
-
-  await subdomain.save();
 }
 
 type nameRedeemCallArgs = [
@@ -490,13 +499,9 @@ export async function handleNameRedeem(
   call: MoonbeamCall<nameRedeemCallArgs>
 ): Promise<void> {
   let namehash = getNamehash(suffixTld(call.args.name));
-
   let token = BigNumber.from(namehash).toString();
 
-  logger.info(token);
-
   let subdomain = await Subdomain.get(token);
-
   if (!subdomain) {
     subdomain = new Subdomain(token);
   }
@@ -509,7 +514,10 @@ export async function handleNameRedeem(
     }
   }
 
+  await subdomain.save();
+
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+
   let info = infos.find((x) => {
     x.id === call.hash;
   });
@@ -530,8 +538,6 @@ export async function handleNameRedeem(
     let info = SubdomainInfo.create(nameRedeem);
     await info.save();
   }
-
-  await subdomain.save();
 }
 const HexCharacters: string = "0123456789abcdef";
 
@@ -577,6 +583,8 @@ export async function handleNameRegisterByManager(
     }
   }
 
+  await subdomain.save();
+
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
   let info = infos.find((x) => {
@@ -599,8 +607,6 @@ export async function handleNameRegisterByManager(
     let info = SubdomainInfo.create(nameRegister);
     await info.save();
   }
-
-  await subdomain.save();
 }
 
 type renewByManagerCallArgs = [string, BigNumberish] & {
@@ -616,6 +622,7 @@ export async function handleRenewByManager(
 
   if (!subdomain) {
     subdomain = new Subdomain(token);
+    await subdomain.save();
   }
   if (call.success) {
     if (call.timestamp) {
@@ -653,7 +660,7 @@ export async function handleRenewByManager(
   await subdomain.save();
 }
 
-import { keccak_256 } from "js-sha3";
+import { keccak_256, Message } from "js-sha3";
 
 // TODO: get namehash 计算结果与链上的计算方式不一致
 function getNamehash(name: string): string {
@@ -664,7 +671,9 @@ function getNamehash(name: string): string {
 
     for (let i = labels.length - 1; i >= 0; i--) {
       let labelSha = keccak_256(labels[i]);
-      node = keccak_256(Buffer.from(node + labelSha, "hex"));
+      node = keccak_256(
+        Array.prototype.slice.call(Buffer.from(node + labelSha, "hex"), 0)
+      );
     }
   }
 
