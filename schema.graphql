@@ -7,29 +7,31 @@ type Subdomain @entity {
   
   owner: String
   
-  expires: String
+  expires: BigInt
 
   removed: Boolean
 
-  infos: [SubdomainInfo]!
+  infos: [SubdomainInfo] @derivedFrom(field:"current")
 }
 
-type SubdomainInfo @jsonField {
-  tx_hash: String
-  
+type SubdomainInfo @entity {
+  id: ID!
+
+  current: Subdomain
+
   owner: String
 
   from: String
 
-  duration: String
+  duration: BigInt
 
   cost: String
 
-  timestamp: Int!
+  timestamp: BigInt!
 
   success: Boolean
 
-  type: String!
+  type: SubdomainType!
 }
 
 enum SubdomainType {

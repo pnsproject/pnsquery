@@ -16,6 +16,7 @@ import {
   RootOwnershipTransferred,
   ControllerConfigUpdated,
   MetadataUpdated,
+  SubdomainInfo,
 } from "../types/models";
 
 import { BigNumber, BigNumberish, Bytes } from "ethers";
@@ -89,11 +90,8 @@ export async function handleNewSubdomain(
     }
   }
 
-  logger.info("parent_name: " + parent_name);
-
   if (!subdomain) {
     subdomain = new Subdomain(event.args.subtokenId.toString());
-    subdomain.infos = [];
   }
 
   subdomain.removed = false;
@@ -110,35 +108,44 @@ export async function handleTransfer(
 
   if (!subdomain) {
     subdomain = new Subdomain(event.args.tokenId.toString());
-    subdomain.infos = [];
   }
 
   if (event.args.to == "0x0000000000000000000000000000000000000000") {
     subdomain.removed = true;
   }
   subdomain.owner = event.args.to;
-  let flag = false;
-
-  subdomain.infos.forEach((info) => {
-    if (info.tx_hash === event.transactionHash) {
-      info.from = event.args.from;
-      info.owner = event.args.to;
-      info.timestamp = event.blockTimestamp.getTime();
-      flag = true;
-    }
-  });
-
-  if (!flag) {
-    subdomain.infos.push({
-      tx_hash: event.transactionHash,
-      from: event.args.from,
-      owner: event.args.to,
-      timestamp: event.blockTimestamp.getTime(),
-      type: SubdomainType.Transfer,
-    });
-  }
 
   await subdomain.save();
+
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+  let timestamp = event.blockTimestamp.getTime();
+
+  let flag = true;
+  if (infos) {
+    let info = infos.find((info) => {
+      info.id === event.transactionHash;
+    });
+    if (info) {
+      info.from = event.args.from;
+      info.owner = event.args.to;
+      info.timestamp = BigNumber.from(timestamp).toBigInt();
+      await info.save();
+      flag = false;
+    }
+  }
+
+  if (flag) {
+    let info = SubdomainInfo.create({
+      id: event.transactionHash,
+      from: event.args.from,
+      owner: event.args.to,
+      timestamp: BigNumber.from(timestamp).toBigInt(),
+      type: SubdomainType.Transfer,
+      currentId: subdomain.id,
+    });
+
+    await info.save();
+  }
 }
 
 export async function handleCapacityUpdated(
@@ -177,46 +184,53 @@ export async function handleNameRegistered(
 
   if (!subdomain) {
     subdomain = new Subdomain(event.args.node.toString());
-    subdomain.infos = [];
   }
 
   subdomain.owner = args.to;
-  subdomain.expires = args.expires.toString();
-  let flag = false;
-  subdomain.infos.forEach((info) => {
-    if (info.tx_hash === event.transactionHash) {
-      info.owner = args.to;
-      info.timestamp = event.blockTimestamp.getTime();
-      info.duration = BigNumber.from(args.expires)
-        .sub(event.blockTimestamp.getTime())
-        .toString();
-      info.cost = args.cost.toString();
-      flag = true;
-    }
+  subdomain.expires = BigNumber.from(args.expires).mul(1000).toBigInt();
+
+  await subdomain.save();
+
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+
+  let info = infos.find((info) => {
+    info.id === event.transactionHash;
   });
 
-  if (!flag) {
+  let timestamp = event.blockTimestamp.getTime();
+
+  if (info) {
+    info.owner = args.to;
+    info.timestamp = BigNumber.from(timestamp).toBigInt();
+    info.duration = BigNumber.from(args.expires)
+      .mul(1000)
+      .sub(timestamp)
+      .toBigInt();
+    info.cost = args.cost.toString();
+    await info.save();
+  } else {
     let nameRegistered = {
-      tx_hash: event.transactionHash,
+      currentId: subdomain.id,
+      id: event.transactionHash,
       owner: event.args.to,
-      timestamp: event.blockTimestamp.getTime(),
+      timestamp: BigNumber.from(timestamp).toBigInt(),
       type: null,
       duration: BigNumber.from(args.expires)
-        .sub(event.blockTimestamp.getTime())
-        .toString(),
+        .mul(10000)
+        .sub(timestamp)
+        .toBigInt(),
       cost: args.cost.toString(),
     };
-
     if (BigNumber.from(args.cost).eq(0)) {
       nameRegistered.type = SubdomainType.RegisterByManager;
     } else {
       nameRegistered.type = SubdomainType.Register;
     }
 
-    subdomain.infos.push(nameRegistered);
-  }
+    let info = SubdomainInfo.create(nameRegistered);
 
-  await subdomain.save();
+    await info.save();
+  }
 }
 
 export async function handleApproval(
@@ -422,39 +436,43 @@ export async function handleNameRenewed(
   let subdomain = await Subdomain.get(event.args.node.toString());
   if (!subdomain) {
     subdomain = new Subdomain(event.args.node.toString());
-    subdomain.infos = [];
   }
-  subdomain.expires = event.args.expires.toString();
+  subdomain.expires = BigNumber.from(event.args.expires).mul(1000).toBigInt();
+  await subdomain.save();
 
-  let flag = false;
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
-  subdomain.infos.forEach((info) => {
-    if (info.tx_hash === event.transactionHash) {
-      info.cost = event.args.cost.toString();
-      info.duration = BigNumber.from(event.args.expires)
-        .sub(event.blockTimestamp.getTime())
-        .toString();
-      info.type = SubdomainType.Renew;
-      info.timestamp = event.blockTimestamp.getTime();
-      flag = true;
-    }
+  let info = infos.find((info) => {
+    info.id === event.transactionHash;
   });
 
-  if (!flag) {
+  let timestamp = event.blockTimestamp.getTime();
+
+  if (info) {
+    info.cost = event.args.cost.toString();
+    info.duration = BigNumber.from(event.args.expires)
+      .mul(1000)
+      .sub(timestamp)
+      .toBigInt();
+    info.type = SubdomainType.Renew;
+    info.timestamp = BigNumber.from(timestamp).toBigInt();
+    await info.save();
+  } else {
     let nameRenewed = {
-      tx_hash: event.transactionHash,
+      currentId: subdomain.id,
+      id: event.transactionHash,
       cost: event.args.cost.toString(),
       duration: BigNumber.from(event.args.expires)
-        .sub(event.blockTimestamp.getTime())
-        .toString(),
+        .mul(1000)
+        .sub(timestamp)
+        .toBigInt(),
       type: SubdomainType.Renew,
-      timestamp: event.blockTimestamp.getTime(),
+      timestamp: BigNumber.from(timestamp).toBigInt(),
     };
 
-    subdomain.infos.push(nameRenewed);
+    let info = SubdomainInfo.create(nameRenewed);
+    await info.save();
   }
-
-  await subdomain.save();
 }
 
 type nameRedeemCallArgs = [
@@ -475,47 +493,48 @@ export async function handleNameRedeem(
   call: MoonbeamCall<nameRedeemCallArgs>
 ): Promise<void> {
   let namehash = getNamehash(suffixTld(call.args.name));
-
   let token = BigNumber.from(namehash).toString();
 
-  logger.info(token);
-
   let subdomain = await Subdomain.get(token);
-
   if (!subdomain) {
     subdomain = new Subdomain(token);
-    subdomain.infos = [];
   }
+
+  let timestamp = call.timestamp;
 
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
-        .toString();
+        .mul(1000)
+        .toBigInt();
     }
-  }
-
-  let flag = false;
-
-  subdomain.infos.forEach((x) => {
-    if (x.tx_hash === call.hash) {
-      x.type = SubdomainType.Redeem;
-      x.success = call.success;
-      x.timestamp = call.timestamp;
-      flag = true;
-    }
-  });
-
-  if (!flag) {
-    let nameRedeem = {
-      success: call.success,
-      timestamp: call.timestamp,
-      type: SubdomainType.Redeem,
-    };
-    subdomain.infos.push(nameRedeem);
   }
 
   await subdomain.save();
+
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+
+  let info = infos.find((x) => {
+    x.id === call.hash;
+  });
+
+  if (info) {
+    info.type = SubdomainType.Redeem;
+    info.success = call.success;
+    info.timestamp = BigNumber.from(timestamp).mul(1000).toBigInt();
+    await info.save();
+  } else {
+    let nameRedeem = {
+      currentId: subdomain.id,
+      id: call.hash,
+      success: call.success,
+      timestamp: BigNumber.from(timestamp).mul(1000).toBigInt(),
+      type: SubdomainType.Redeem,
+    };
+    let info = SubdomainInfo.create(nameRedeem);
+    await info.save();
+  }
 }
 const HexCharacters: string = "0123456789abcdef";
 
@@ -552,37 +571,43 @@ export async function handleNameRegisterByManager(
 
   if (!subdomain) {
     subdomain = new Subdomain(token);
-    subdomain.infos = [];
   }
+
+  let timestamp = call.timestamp;
+
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
-        .toString();
+        .mul(1000)
+        .toBigInt();
     }
-  }
-
-  let flag = false;
-
-  subdomain.infos.forEach((x) => {
-    if (x.tx_hash === call.hash) {
-      x.type = SubdomainType.Register;
-      x.success = call.success;
-      x.timestamp = call.timestamp;
-      flag = true;
-    }
-  });
-
-  if (!flag) {
-    let nameRegister = {
-      success: call.success,
-      timestamp: call.timestamp,
-      type: SubdomainType.Register,
-    };
-    subdomain.infos.push(nameRegister);
   }
 
   await subdomain.save();
+
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+
+  let info = infos.find((x) => {
+    x.id === call.hash;
+  });
+
+  if (info) {
+    info.type = SubdomainType.Register;
+    info.success = call.success;
+    info.timestamp = BigNumber.from(timestamp).mul(1000).toBigInt();
+    await info.save();
+  } else {
+    let nameRegister = {
+      currentId: subdomain.id,
+      id: call.hash,
+      success: call.success,
+      timestamp: BigNumber.from(timestamp).mul(1000).toBigInt(),
+      type: SubdomainType.Register,
+    };
+    let info = SubdomainInfo.create(nameRegister);
+    await info.save();
+  }
 }
 
 type renewByManagerCallArgs = [string, BigNumberish] & {
@@ -598,62 +623,64 @@ export async function handleRenewByManager(
 
   if (!subdomain) {
     subdomain = new Subdomain(token);
-    subdomain.infos = [];
+    await subdomain.save();
   }
+
+  let timestamp = call.timestamp;
+
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
-        .toString();
+        .mul(1000)
+        .toBigInt();
     }
   }
 
-  let flag = false;
+  let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
 
-  subdomain.infos.forEach((x) => {
-    if (x.tx_hash === call.hash) {
-      x.type = SubdomainType.RenewByManager;
-      x.success = call.success;
-      x.timestamp = call.timestamp;
-      x.duration = call.args.duration.toString();
-      x.from = call.from;
-      flag = true;
-    }
+  let info = infos.find((x) => {
+    x.id === call.hash;
   });
 
-  if (!flag) {
+  if (info) {
+    info.type = SubdomainType.RenewByManager;
+    info.success = call.success;
+    info.timestamp = BigNumber.from(timestamp).mul(1000).toBigInt();
+    info.duration = BigNumber.from(call.args.duration).mul(1000).toBigInt();
+    await info.save();
+  } else {
     let nameRenewByManager = {
+      currentId: subdomain.id,
+      id: call.hash,
       success: call.success,
-      timestamp: call.timestamp,
+      timestamp: BigNumber.from(timestamp).mul(1000).toBigInt(),
       type: SubdomainType.RenewByManager,
-      duration: call.args.duration.toString(),
-      from: call.from,
+      duration: BigNumber.from(call.args.duration).mul(1000).toBigInt(),
     };
-    subdomain.infos.push(nameRenewByManager);
+    let info = SubdomainInfo.create(nameRenewByManager);
+    await info.save();
   }
 
   await subdomain.save();
 }
 
-import { keccak_256 } from "js-sha3";
+import { keccak_256, Message } from "js-sha3";
 
+// TODO: get namehash 计算结果与链上的计算方式不一致
 function getNamehash(name: string): string {
   let node = "0000000000000000000000000000000000000000000000000000000000000000";
 
   if (name) {
     let labels = name.split(".");
-    logger.info("labels: " + labels);
+
     for (let i = labels.length - 1; i >= 0; i--) {
       let labelSha = keccak_256(labels[i]);
-      logger.info(node + labelSha);
-      let msg = Buffer.from(node + labelSha, "hex").toString("hex");
-      logger.info("msg: " + msg);
-      node = keccak_256(msg);
-      logger.info("node: " + node);
+      node = keccak_256(
+        Array.prototype.slice.call(Buffer.from(node + labelSha, "hex"), 0)
+      );
     }
   }
-
-  logger.info(node);
 
   return "0x" + node;
 }
