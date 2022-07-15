@@ -118,6 +118,7 @@ export async function handleTransfer(
   await subdomain.save();
 
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
+  let timestamp = event.blockTimestamp.getTime();
 
   let flag = true;
   if (infos) {
@@ -127,9 +128,7 @@ export async function handleTransfer(
     if (info) {
       info.from = event.args.from;
       info.owner = event.args.to;
-      info.timestamp = BigNumber.from(
-        event.blockTimestamp.getUTCSeconds()
-      ).toBigInt();
+      info.timestamp = BigNumber.from(timestamp).toBigInt();
       await info.save();
       flag = false;
     }
@@ -140,9 +139,7 @@ export async function handleTransfer(
       id: event.transactionHash,
       from: event.args.from,
       owner: event.args.to,
-      timestamp: BigNumber.from(
-        event.blockTimestamp.getUTCSeconds()
-      ).toBigInt(),
+      timestamp: BigNumber.from(timestamp).toBigInt(),
       type: SubdomainType.Transfer,
       currentId: subdomain.id,
     });
@@ -155,7 +152,7 @@ export async function handleCapacityUpdated(
   event: MoonbeamEvent<CapacityUpdatedEventArgs>
 ): Promise<void> {
   let capacityChanged = new CapacityChanged(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
 
   capacityChanged.capacity = event.args.capacity.toString();
@@ -169,7 +166,7 @@ export async function handlePriceChanged(
   event: MoonbeamEvent<PriceChangedEventArgs>
 ): Promise<void> {
   let pricesChanged = new PriceChanged(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
 
   pricesChanged.basePrices = event.args.basePrices.map((x) => x.toString());
@@ -190,7 +187,7 @@ export async function handleNameRegistered(
   }
 
   subdomain.owner = args.to;
-  subdomain.expires = BigNumber.from(args.expires).toBigInt();
+  subdomain.expires = BigNumber.from(args.expires).mul(1000).toBigInt();
 
   await subdomain.save();
 
@@ -199,13 +196,15 @@ export async function handleNameRegistered(
   let info = infos.find((info) => {
     info.id === event.transactionHash;
   });
+
+  let timestamp = event.blockTimestamp.getTime();
+
   if (info) {
     info.owner = args.to;
-    info.timestamp = BigNumber.from(
-      event.blockTimestamp.getUTCSeconds()
-    ).toBigInt();
+    info.timestamp = BigNumber.from(timestamp).toBigInt();
     info.duration = BigNumber.from(args.expires)
-      .sub(event.blockTimestamp.getUTCSeconds())
+      .mul(1000)
+      .sub(timestamp)
       .toBigInt();
     info.cost = args.cost.toString();
     await info.save();
@@ -214,12 +213,11 @@ export async function handleNameRegistered(
       currentId: subdomain.id,
       id: event.transactionHash,
       owner: event.args.to,
-      timestamp: BigNumber.from(
-        event.blockTimestamp.getUTCSeconds()
-      ).toBigInt(),
+      timestamp: BigNumber.from(timestamp).toBigInt(),
       type: null,
       duration: BigNumber.from(args.expires)
-        .sub(event.blockTimestamp.getUTCSeconds())
+        .mul(10000)
+        .sub(timestamp)
         .toBigInt(),
       cost: args.cost.toString(),
     };
@@ -238,7 +236,7 @@ export async function handleNameRegistered(
 export async function handleApproval(
   event: MoonbeamEvent<ApprovalEventArgs>
 ): Promise<void> {
-  let approval = new Approval(event.blockTimestamp.getUTCSeconds().toString());
+  let approval = new Approval(event.blockTimestamp.getTime().toString());
 
   approval.approved = event.args.approved;
   approval.node = event.args.tokenId.toString();
@@ -251,7 +249,7 @@ export async function handleApprovalForAll(
   event: MoonbeamEvent<ApprovalForAllEventArgs>
 ): Promise<void> {
   let approvalForAll = new ApprovalForAll(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
 
   approvalForAll.approved = event.args.approved;
@@ -264,9 +262,7 @@ export async function handleApprovalForAll(
 export async function handleNewResolver(
   event: MoonbeamEvent<NewResolverEventArgs>
 ): Promise<void> {
-  let newResolver = new NewResolver(
-    event.blockTimestamp.getUTCSeconds().toString()
-  );
+  let newResolver = new NewResolver(event.blockTimestamp.getTime().toString());
 
   newResolver.node = event.args.tokenId.toString();
   newResolver.resolver = event.args.resolver;
@@ -309,7 +305,7 @@ export async function handleManagerChanged(
   event: MoonbeamEvent<ManagerChangedEventArgs>
 ): Promise<void> {
   let managerChanged = new ManagerChanged(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
   managerChanged.manager = event.args.manager;
   managerChanged.role = event.args.role;
@@ -323,7 +319,7 @@ export async function handleRootOwnershipTransferred(
   event: MoonbeamEvent<RootOwnershipTransferredEventArgs>
 ): Promise<void> {
   let entity = new RootOwnershipTransferred(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
   entity.oldRoot = event.args.oldRoot;
   entity.newRoot = event.args.newRoot;
@@ -334,7 +330,7 @@ export async function handlePnsConfigUpdated(
   event: MoonbeamEvent<ConfigUpdatedEventArgs>
 ): Promise<void> {
   let configUpdated = new PnsConfigUpdated(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
   configUpdated.flags = event.args.flags.toString();
   await configUpdated.save();
@@ -344,7 +340,7 @@ export async function handleControllerConfigUpdated(
   event: MoonbeamEvent<ConfigUpdatedEventArgs>
 ): Promise<void> {
   let configUpdated = new ControllerConfigUpdated(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
   configUpdated.flags = event.args.flags.toString();
   await configUpdated.save();
@@ -357,7 +353,7 @@ export async function handleNewKey(
 
   newKey.key = event.args.key;
   newKey.keyIndex = event.args.keyIndex;
-  newKey.timestamp = event.blockTimestamp.getUTCSeconds();
+  newKey.timestamp = event.blockTimestamp.getTime();
 
   await newKey.save();
 }
@@ -366,7 +362,7 @@ export async function handleResetRecords(
   event: MoonbeamEvent<ResetRecordsEventArgs>
 ): Promise<void> {
   let resetRecords = new ResetRecords(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
 
   resetRecords.node = event.args.tokenId.toString();
@@ -377,7 +373,7 @@ export async function handleResetRecords(
 export async function handleSet(
   event: MoonbeamEvent<SetEventArgs>
 ): Promise<void> {
-  let set = new Set(event.blockTimestamp.getUTCSeconds().toString());
+  let set = new Set(event.blockTimestamp.getTime().toString());
 
   set.keyHash = event.args.keyHash.toString();
   set.node = event.args.tokenId.toString();
@@ -389,7 +385,7 @@ export async function handleSet(
 export async function handleSetName(
   event: MoonbeamEvent<SetNameEventArgs>
 ): Promise<void> {
-  let setName = new SetName(event.blockTimestamp.getUTCSeconds().toString());
+  let setName = new SetName(event.blockTimestamp.getTime().toString());
 
   setName.addr = event.args.addr;
   setName.node = event.args.tokenId.toString();
@@ -400,9 +396,7 @@ export async function handleSetName(
 export async function handleSetNftName(
   event: MoonbeamEvent<SetNftNameEventArgs>
 ): Promise<void> {
-  let setNftName = new SetNftName(
-    event.blockTimestamp.getUTCSeconds().toString()
-  );
+  let setNftName = new SetNftName(event.blockTimestamp.getTime().toString());
 
   setNftName.nftAddr = event.args.nftAddr;
   setNftName.nftNode = event.args.nftTokenId.toString();
@@ -417,7 +411,7 @@ export async function handleMetadataUpdated(
   event: MoonbeamEvent<MetadataUpdatedEventArgs>
 ): Promise<void> {
   let meatadataUpdated = new MetadataUpdated(
-    event.blockTimestamp.getUTCSeconds().toString()
+    event.blockTimestamp.getTime().toString()
   );
 
   meatadataUpdated.data = event.args.data.map((x) => x.toString());
@@ -443,7 +437,7 @@ export async function handleNameRenewed(
   if (!subdomain) {
     subdomain = new Subdomain(event.args.node.toString());
   }
-  subdomain.expires = BigNumber.from(event.args.expires).toBigInt();
+  subdomain.expires = BigNumber.from(event.args.expires).mul(1000).toBigInt();
   await subdomain.save();
 
   let infos = await SubdomainInfo.getByCurrentId(subdomain.id);
@@ -452,15 +446,16 @@ export async function handleNameRenewed(
     info.id === event.transactionHash;
   });
 
+  let timestamp = event.blockTimestamp.getTime();
+
   if (info) {
     info.cost = event.args.cost.toString();
     info.duration = BigNumber.from(event.args.expires)
-      .sub(event.blockTimestamp.getUTCSeconds())
+      .mul(1000)
+      .sub(timestamp)
       .toBigInt();
     info.type = SubdomainType.Renew;
-    info.timestamp = BigNumber.from(
-      event.blockTimestamp.getUTCSeconds()
-    ).toBigInt();
+    info.timestamp = BigNumber.from(timestamp).toBigInt();
     await info.save();
   } else {
     let nameRenewed = {
@@ -468,12 +463,11 @@ export async function handleNameRenewed(
       id: event.transactionHash,
       cost: event.args.cost.toString(),
       duration: BigNumber.from(event.args.expires)
-        .sub(event.blockTimestamp.getUTCSeconds())
+        .mul(1000)
+        .sub(timestamp)
         .toBigInt(),
       type: SubdomainType.Renew,
-      timestamp: BigNumber.from(
-        event.blockTimestamp.getUTCSeconds()
-      ).toBigInt(),
+      timestamp: BigNumber.from(timestamp).toBigInt(),
     };
 
     let info = SubdomainInfo.create(nameRenewed);
@@ -506,10 +500,13 @@ export async function handleNameRedeem(
     subdomain = new Subdomain(token);
   }
 
+  let timestamp = call.timestamp;
+
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
+        .mul(1000)
         .toBigInt();
     }
   }
@@ -525,14 +522,14 @@ export async function handleNameRedeem(
   if (info) {
     info.type = SubdomainType.Redeem;
     info.success = call.success;
-    info.timestamp = BigNumber.from(call.timestamp).toBigInt();
+    info.timestamp = BigNumber.from(timestamp).mul(1000).toBigInt();
     await info.save();
   } else {
     let nameRedeem = {
       currentId: subdomain.id,
       id: call.hash,
       success: call.success,
-      timestamp: BigNumber.from(call.timestamp).toBigInt(),
+      timestamp: BigNumber.from(timestamp).mul(1000).toBigInt(),
       type: SubdomainType.Redeem,
     };
     let info = SubdomainInfo.create(nameRedeem);
@@ -575,10 +572,14 @@ export async function handleNameRegisterByManager(
   if (!subdomain) {
     subdomain = new Subdomain(token);
   }
+
+  let timestamp = call.timestamp;
+
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
+        .mul(1000)
         .toBigInt();
     }
   }
@@ -594,14 +595,14 @@ export async function handleNameRegisterByManager(
   if (info) {
     info.type = SubdomainType.Register;
     info.success = call.success;
-    info.timestamp = BigNumber.from(call.timestamp).toBigInt();
+    info.timestamp = BigNumber.from(timestamp).mul(1000).toBigInt();
     await info.save();
   } else {
     let nameRegister = {
       currentId: subdomain.id,
       id: call.hash,
       success: call.success,
-      timestamp: BigNumber.from(call.timestamp).toBigInt(),
+      timestamp: BigNumber.from(timestamp).mul(1000).toBigInt(),
       type: SubdomainType.Register,
     };
     let info = SubdomainInfo.create(nameRegister);
@@ -624,10 +625,14 @@ export async function handleRenewByManager(
     subdomain = new Subdomain(token);
     await subdomain.save();
   }
+
+  let timestamp = call.timestamp;
+
   if (call.success) {
     if (call.timestamp) {
       subdomain.expires = BigNumber.from(call.args.duration)
         .add(call.timestamp)
+        .mul(1000)
         .toBigInt();
     }
   }
@@ -641,17 +646,17 @@ export async function handleRenewByManager(
   if (info) {
     info.type = SubdomainType.RenewByManager;
     info.success = call.success;
-    info.timestamp = BigNumber.from(call.timestamp).toBigInt();
-    info.duration = BigNumber.from(call.args.duration).toBigInt();
+    info.timestamp = BigNumber.from(timestamp).mul(1000).toBigInt();
+    info.duration = BigNumber.from(call.args.duration).mul(1000).toBigInt();
     await info.save();
   } else {
     let nameRenewByManager = {
       currentId: subdomain.id,
       id: call.hash,
       success: call.success,
-      timestamp: BigNumber.from(call.timestamp).toBigInt(),
+      timestamp: BigNumber.from(timestamp).mul(1000).toBigInt(),
       type: SubdomainType.RenewByManager,
-      duration: BigNumber.from(call.args.duration).toBigInt(),
+      duration: BigNumber.from(call.args.duration).mul(1000).toBigInt(),
     };
     let info = SubdomainInfo.create(nameRenewByManager);
     await info.save();
