@@ -55,3 +55,6 @@ Thumbs.db
 *.wmv
 
 /query/domains*
+
+# data
+*.json

@@ -1,2 +1,15 @@
-[workspace]
-members = ["query", "pns_da"]
+[package]
+name = "query"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+cynic = { git = "https://github.com/obmarg/cynic.git", features = ["http-reqwest"] }
+tokio = { version = "1", features = ["full"] }
+anyhow = "1"
+reqwest = { version = "0.11", features = ["json"] }
+time = "0.3"
+serde_json = { version = "1", features = ["preserve_order"] }
+serde = "1"
