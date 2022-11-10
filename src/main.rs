@@ -7,7 +7,7 @@ mod new_subdomains;
 mod registrations;
 mod token_list;
 
-use std::collections::HashMap;
+// use std::collections::HashMap;
 
 use cynic::Operation;
 use futures_util::Stream;
@@ -30,43 +30,43 @@ async fn main() -> anyhow::Result<()> {
     file.write_all(&serde_json::to_vec_pretty(&accounts)?)
         .await?;
 
-    let token_list = query_all::<token_list::QueryTokenList>().await;
+    // let token_list = query_all::<token_list::QueryTokenList>().await;
 
-    let new_subdomain = query_all::<new_subdomains::NewSubdomainQueryBuilder>().await;
+    // let new_subdomain = query_all::<new_subdomains::NewSubdomainQueryBuilder>().await;
 
-    println!("token_list len: {}", token_list.len());
+    // println!("token_list len: {}", token_list.len());
 
-    println!("new_subdomain len: {}", new_subdomain.len());
+    // println!("new_subdomain len: {}", new_subdomain.len());
 
-    let pns_info = PnsInfo {
-        token_list,
-        new_subdomain,
-    };
+    // let pns_info = PnsInfo {
+    //     token_list,
+    //     new_subdomain,
+    // };
 
-    let pns_info_name = format!(
-        "pns_info{}.json",
-        time::OffsetDateTime::now_utc().unix_timestamp()
-    );
+    // let pns_info_name = format!(
+    //     "pns_info{}.json",
+    //     time::OffsetDateTime::now_utc().unix_timestamp()
+    // );
 
-    let mut file = tokio::fs::File::create(pns_info_name).await?;
-    file.write_all(&serde_json::to_vec_pretty(&pns_info)?)
-        .await?;
+    // let mut file = tokio::fs::File::create(pns_info_name).await?;
+    // file.write_all(&serde_json::to_vec_pretty(&pns_info)?)
+    //     .await?;
 
-    let query_records = registrations::Records(
-        IntoIterator::into_iter(query_all::<registrations::RecordsBuilder>().await)
-            .collect::<HashMap<_, _>>(),
-    );
+    // let query_records = registrations::Records(
+    //     IntoIterator::into_iter(query_all::<registrations::RecordsBuilder>().await)
+    //         .collect::<HashMap<_, _>>(),
+    // );
 
-    println!("records len:{}", query_records.0.len());
+    // println!("records len:{}", query_records.0.len());
 
-    let records_name = format!(
-        "records{}.json",
-        time::OffsetDateTime::now_utc().unix_timestamp()
-    );
+    // let records_name = format!(
+    //     "records{}.json",
+    //     time::OffsetDateTime::now_utc().unix_timestamp()
+    // );
 
-    let mut file = tokio::fs::File::create(records_name).await?;
-    file.write_all(&serde_json::to_vec_pretty(&query_records)?)
-        .await?;
+    // let mut file = tokio::fs::File::create(records_name).await?;
+    // file.write_all(&serde_json::to_vec_pretty(&query_records)?)
+    //     .await?;
 
     Ok(())
 }

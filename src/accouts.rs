@@ -8,6 +8,7 @@ query QueryAccounts($skip: Int = 10) {
       where: {parent: "0x3fce7d1364a893e213bc4212792b517ffc88f5b13b86c8ef9c8d390c3a1370ce"}
     ) {
       name
+      createdAt
     }
   }
 }
@@ -16,13 +17,14 @@ query QueryDomains($skip: Int = 10, $id: ID = "") {
   account(id: $id) {
     domains(first: 1000, skip: $skip) {
       name
+      createdAt
     }
   }
 }
-
-
 ```
 */
+const MAX_TIMESTAMP: i32 = 1667908800;
+
 #[cynic::schema_for_derives(file = r#"schema.gql"#, module = "schema")]
 mod queries {
     use super::schema;
@@ -69,7 +71,11 @@ mod queries {
     #[derive(cynic::QueryFragment, Debug)]
     pub struct Domain {
         pub name: Option<String>,
+        pub created_at: BigInt,
     }
+
+    #[derive(cynic::Scalar, Debug, Clone)]
+    pub struct BigInt(pub String);
 
     #[derive(cynic::Scalar, Debug, Clone)]
     pub struct Bytes(pub String);
@@ -91,15 +97,6 @@ use crate::{run_graphql, HandleId, IsFull, IsFullAsync, ACCOUNT_ID_LEN};
 pub struct AllAccounts {
     accounts_num: usize,
     accounts: HashSet<Account>,
-}
-
-impl AllAccounts {
-    pub fn from_set(set: HashSet<Account>) -> Self {
-        Self {
-            accounts_num: set.len(),
-            accounts: set,
-        }
-    }
 }
 
 #[derive(Debug, Serialize, Eq)]
@@ -175,7 +172,12 @@ impl IsFull for queries::QueryDomains {
             .map(|a| {
                 a.domains
                     .into_iter()
-                    .filter_map(|d| d.name)
+                    .filter_map(|d| {
+                        if d.created_at.0.parse::<i32>().unwrap() > MAX_TIMESTAMP {
+                            return None;
+                        }
+                        d.name
+                    })
                     .collect::<HashSet<_>>()
             })
             .into_iter()
@@ -218,7 +220,12 @@ impl IsFullAsync for queries::QueryAccounts {
             let mut domains = account
                 .domains
                 .into_iter()
-                .filter_map(|d| d.name)
+                .filter_map(|d| {
+                    if d.created_at.0.parse::<i32>().unwrap() > MAX_TIMESTAMP {
+                        return None;
+                    }
+                    d.name
+                })
                 .collect::<HashSet<_>>();
             if let Some(full) = full {
                 full.into_iter().for_each(|set| domains.extend(set));
