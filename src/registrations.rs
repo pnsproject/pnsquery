@@ -1,59 +1,80 @@
-use std::collections::HashMap;
-
-use serde::Serialize;
-
-use crate::{BuildQuery, IsFull};
-
-use self::queries::Domain2;
-
+/*!
+```
+query QueryRegistrations($skip: Int = 10) {
+  registrations(skip: $skip, first: 1000) {
+    expiryDate
+    origin {
+      id
+    }
+    capacity
+    domain {
+      subdomainCount
+      id
+    }
+  }
+}
+```
+*/
 #[cynic::schema_for_derives(file = r#"schema.gql"#, module = "schema")]
-pub mod queries {
+mod queries {
     use super::schema;
 
     #[derive(cynic::QueryVariables, Debug)]
-    pub struct RegistrationsVariables {
+    pub struct QueryRegistrationsVariables {
         pub skip: Option<i32>,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
-    #[cynic(graphql_type = "Query", variables = "RegistrationsVariables")]
-    pub struct Registrations {
-        #[arguments(first: 1000, skip: $skip)]
+    #[cynic(graphql_type = "Query", variables = "QueryRegistrationsVariables")]
+    pub struct QueryRegistrations {
+        #[arguments(skip: $skip, first: 1000)]
         pub registrations: Vec<Registration>,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
     pub struct Registration {
-        pub expiry_date: BigInt,
+        pub expiry_date: Option<BigInt>,
         pub origin: Option<Domain>,
         pub capacity: Option<BigInt>,
-        pub domain: Option<Domain2>,
+        pub domain: Domain2,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
     #[cynic(graphql_type = "Domain")]
     pub struct Domain2 {
-        pub id: cynic::Id,
         pub subdomain_count: i32,
+        pub id: Bytes,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
     pub struct Domain {
-        pub id: cynic::Id,
+        pub id: Bytes,
     }
 
     #[derive(cynic::Scalar, Debug, Clone)]
     pub struct BigInt(pub String);
+
+    #[derive(cynic::Scalar, Debug, Clone)]
+    pub struct Bytes(pub String);
 }
 
+#[allow(non_snake_case, non_camel_case_types)]
 mod schema {
     cynic::use_schema!(r#"schema.gql"#);
 }
 
+use std::collections::HashMap;
+
+use serde::Serialize;
+
+use crate::{BuildQuery, IsFull, DOMAIN_ID_LEN};
+
+use self::queries::Domain2;
+
 #[derive(Debug, Serialize)]
 pub struct Record {
     pub origin: String,
-    pub expire: i64,
+    pub expire: Option<i64>,
     pub capacity: i64,
     pub children: i32,
 }
@@ -64,18 +85,18 @@ pub struct Records(pub HashMap<String, Record>);
 pub struct RecordsBuilder;
 
 impl BuildQuery for RecordsBuilder {
-    type Vars = queries::RegistrationsVariables;
+    type Vars = queries::QueryRegistrationsVariables;
 
-    type ResponseData = queries::Registrations;
+    type ResponseData = queries::QueryRegistrations;
 
     fn build_query(offset: i32) -> cynic::Operation<Self::ResponseData, Self::Vars> {
-        <queries::Registrations as cynic::QueryBuilder>::build(queries::RegistrationsVariables {
-            skip: Some(offset),
-        })
+        <queries::QueryRegistrations as cynic::QueryBuilder>::build(
+            queries::QueryRegistrationsVariables { skip: Some(offset) },
+        )
     }
 }
 
-impl IsFull for queries::Registrations {
+impl IsFull for queries::QueryRegistrations {
     type Item = (String, Record);
 
     fn len(&self) -> usize {
@@ -83,26 +104,26 @@ impl IsFull for queries::Registrations {
     }
 
     fn into_iter(self) -> impl IntoIterator<Item = Self::Item> {
-        IntoIterator::into_iter(self.registrations).filter_map(|registration| {
-            registration.domain.map(
-                |Domain2 {
-                     id,
-                     subdomain_count,
-                 }| {
-                    (
-                        crate::HandleId::handle_id::<66>(&id),
-                        Record {
-                            expire: registration.expiry_date.0.parse().unwrap(),
-                            origin: crate::HandleId::handle_id::<66>(
-                                &registration.origin.map(|origin| origin.id).unwrap_or(id),
-                            ),
-                            capacity: registration
-                                .capacity
-                                .map(|capacity| capacity.0.parse().unwrap())
-                                .unwrap_or(100),
-                            children: subdomain_count,
-                        },
-                    )
+        IntoIterator::into_iter(self.registrations).map(|registration| {
+            let Domain2 {
+                id,
+                subdomain_count,
+            } = registration.domain;
+            (
+                crate::HandleId::handle_id::<DOMAIN_ID_LEN>(&id.0),
+                Record {
+                    expire: registration.expiry_date.and_then(|d| d.0.parse().ok()),
+                    origin: crate::HandleId::handle_id::<DOMAIN_ID_LEN>(
+                        &registration
+                            .origin
+                            .map(|origin| origin.id.0)
+                            .unwrap_or(id.0),
+                    ),
+                    capacity: registration
+                        .capacity
+                        .map(|capacity| capacity.0.parse().unwrap())
+                        .unwrap_or(100),
+                    children: subdomain_count,
                 },
             )
         })

@@ -1,9 +1,25 @@
-use serde::Serialize;
-
-use crate::{BuildQuery, HandleId, IsFull};
-
+/*!
+```
+query QueryAccounts($skip: Int = 10,) {
+  domainEvents(first: 1000, skip: $skip) {
+    ... on NewSubdomain {
+      name
+      to {
+        id
+      }
+      parentId {
+        id
+      }
+      domain {
+        id
+      }
+    }
+  }
+}
+```
+*/
 #[cynic::schema_for_derives(file = r#"schema.gql"#, module = "schema")]
-pub mod queries {
+mod queries {
     use super::schema;
 
     #[derive(cynic::QueryVariables, Debug)]
@@ -22,18 +38,18 @@ pub mod queries {
     pub struct NewSubdomain {
         pub name: String,
         pub to: Account,
-        pub domain: Domain,
         pub parent_id: Domain,
+        pub domain: Domain,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
     pub struct Domain {
-        pub id: cynic::Id,
+        pub id: Bytes,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
     pub struct Account {
-        pub id: cynic::Id,
+        pub id: Bytes,
     }
 
     #[derive(cynic::InlineFragments, Debug)]
@@ -42,11 +58,19 @@ pub mod queries {
         #[cynic(fallback)]
         Unknown,
     }
+
+    #[derive(cynic::Scalar, Debug, Clone)]
+    pub struct Bytes(pub String);
 }
 
+#[allow(non_snake_case, non_camel_case_types)]
 mod schema {
     cynic::use_schema!(r#"schema.gql"#);
 }
+
+use serde::Serialize;
+
+use crate::{BuildQuery, HandleId, IsFull, ACCOUNT_ID_LEN, DOMAIN_ID_LEN};
 
 #[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -82,9 +106,9 @@ impl IsFull for queries::NewSubdomains {
                 domain,
                 parent_id,
             }) => Some(NewSubdomain {
-                to: to.id.handle_id::<42>(),
-                token_id: parent_id.id.handle_id::<66>(),
-                subtoken_id: domain.id.handle_id::<66>(),
+                to: to.id.0.handle_id::<ACCOUNT_ID_LEN>(),
+                token_id: parent_id.id.0.handle_id::<DOMAIN_ID_LEN>(),
+                subtoken_id: domain.id.0.handle_id::<DOMAIN_ID_LEN>(),
                 name,
             }),
             queries::DomainEvent::Unknown => None,

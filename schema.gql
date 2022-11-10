@@ -12,7 +12,7 @@ creates a virtual field on the entity that may be queried but cannot be set manu
 directive @derivedFrom(field: String!) on FIELD_DEFINITION
 
 type Account {
-  id: ID!
+  id: Bytes!
   domains(skip: Int = 0, first: Int = 100, orderBy: Domain_orderBy, orderDirection: OrderDirection, where: Domain_filter): [Domain!]!
   authorities(skip: Int = 0, first: Int = 100, orderBy: AuthorisationChanged_orderBy, orderDirection: OrderDirection, where: AuthorisationChanged_filter): [AuthorisationChanged!]
   authoriseds(skip: Int = 0, first: Int = 100, orderBy: AuthorisationChanged_orderBy, orderDirection: OrderDirection, where: AuthorisationChanged_filter): [AuthorisationChanged!]
@@ -94,14 +94,12 @@ enum AccountEvent_orderBy {
 }
 
 input Account_filter {
-  id: ID
-  id_not: ID
-  id_gt: ID
-  id_lt: ID
-  id_gte: ID
-  id_lte: ID
-  id_in: [ID!]
-  id_not_in: [ID!]
+  id: Bytes
+  id_not: Bytes
+  id_in: [Bytes!]
+  id_not_in: [Bytes!]
+  id_contains: Bytes
+  id_not_contains: Bytes
   domains_: Domain_filter
   authorities_: AuthorisationChanged_filter
   authoriseds_: AuthorisationChanged_filter
@@ -486,7 +484,7 @@ enum CapacityUpdated_orderBy {
 }
 
 type Domain {
-  id: ID!
+  id: Bytes!
   name: String
   labelName: String
   labelhash: Bytes
@@ -498,6 +496,7 @@ type Domain {
   resolver: Resolver
   createdAt: BigInt!
   events(skip: Int = 0, first: Int = 100, orderBy: DomainEvent_orderBy, orderDirection: OrderDirection, where: DomainEvent_filter): [DomainEvent!]
+  registrations(skip: Int = 0, first: Int = 100, orderBy: Registration_orderBy, orderDirection: OrderDirection, where: Registration_filter): [Registration!]
 }
 
 interface DomainEvent {
@@ -574,14 +573,12 @@ enum DomainEvent_orderBy {
 }
 
 input Domain_filter {
-  id: ID
-  id_not: ID
-  id_gt: ID
-  id_lt: ID
-  id_gte: ID
-  id_lte: ID
-  id_in: [ID!]
-  id_not_in: [ID!]
+  id: Bytes
+  id_not: Bytes
+  id_in: [Bytes!]
+  id_not_in: [Bytes!]
+  id_contains: Bytes
+  id_not_contains: Bytes
   name: String
   name_not: String
   name_gt: String
@@ -729,6 +726,7 @@ input Domain_filter {
   createdAt_lte: BigInt
   createdAt_in: [BigInt!]
   createdAt_not_in: [BigInt!]
+  registrations_: Registration_filter
 
   """Filter for the block changed event."""
   _change_block: BlockChangedFilter
@@ -747,6 +745,7 @@ enum Domain_orderBy {
   resolver
   createdAt
   events
+  registrations
 }
 
 type NameRegistered implements RegistrationEvent {
@@ -1381,6 +1380,36 @@ type Query {
     """
     subgraphError: _SubgraphErrorPolicy_! = deny
   ): [Set!]!
+  setLink(
+    id: ID!
+
+    """
+    The block at which the query should be executed. Can either be a `{ hash: Bytes }` value containing a block hash, a `{ number: Int }` containing the block number, or a `{ number_gte: Int }` containing the minimum block number. In the case of `number_gte`, the query will be executed on the latest block only if the subgraph has progressed to or past the minimum block number. Defaults to the latest block when omitted.
+    """
+    block: Block_height
+
+    """
+    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
+    """
+    subgraphError: _SubgraphErrorPolicy_! = deny
+  ): SetLink
+  setLinks(
+    skip: Int = 0
+    first: Int = 100
+    orderBy: SetLink_orderBy
+    orderDirection: OrderDirection
+    where: SetLink_filter
+
+    """
+    The block at which the query should be executed. Can either be a `{ hash: Bytes }` value containing a block hash, a `{ number: Int }` containing the block number, or a `{ number_gte: Int }` containing the minimum block number. In the case of `number_gte`, the query will be executed on the latest block only if the subgraph has progressed to or past the minimum block number. Defaults to the latest block when omitted.
+    """
+    block: Block_height
+
+    """
+    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
+    """
+    subgraphError: _SubgraphErrorPolicy_! = deny
+  ): [SetLink!]!
   transfer(
     id: ID!
 
@@ -1897,10 +1926,10 @@ type Query {
 }
 
 type Registration {
-  id: ID!
-  domain: Domain
+  id: Bytes!
+  domain: Domain!
   origin: Domain
-  expiryDate: BigInt!
+  expiryDate: BigInt
   capacity: BigInt
   labelName: String
   events(skip: Int = 0, first: Int = 100, orderBy: RegistrationEvent_orderBy, orderDirection: OrderDirection, where: RegistrationEvent_filter): [RegistrationEvent!]!
@@ -2003,14 +2032,12 @@ enum RegistrationEvent_orderBy {
 }
 
 input Registration_filter {
-  id: ID
-  id_not: ID
-  id_gt: ID
-  id_lt: ID
-  id_gte: ID
-  id_lte: ID
-  id_in: [ID!]
-  id_not_in: [ID!]
+  id: Bytes
+  id_not: Bytes
+  id_in: [Bytes!]
+  id_not_in: [Bytes!]
+  id_contains: Bytes
+  id_not_contains: Bytes
   domain: String
   domain_not: String
   domain_gt: String
@@ -2287,6 +2314,99 @@ type Set implements DomainEvent {
   transactionID: Bytes!
   keyHash: BigInt!
   value: String!
+}
+
+type SetLink implements DomainEvent {
+  id: ID!
+  domain: Domain!
+  blockNumber: Int!
+  triggeredDate: BigInt!
+  transactionID: Bytes!
+  keyHash: BigInt!
+  value: BigInt!
+}
+
+input SetLink_filter {
+  id: ID
+  id_not: ID
+  id_gt: ID
+  id_lt: ID
+  id_gte: ID
+  id_lte: ID
+  id_in: [ID!]
+  id_not_in: [ID!]
+  domain: String
+  domain_not: String
+  domain_gt: String
+  domain_lt: String
+  domain_gte: String
+  domain_lte: String
+  domain_in: [String!]
+  domain_not_in: [String!]
+  domain_contains: String
+  domain_contains_nocase: String
+  domain_not_contains: String
+  domain_not_contains_nocase: String
+  domain_starts_with: String
+  domain_starts_with_nocase: String
+  domain_not_starts_with: String
+  domain_not_starts_with_nocase: String
+  domain_ends_with: String
+  domain_ends_with_nocase: String
+  domain_not_ends_with: String
+  domain_not_ends_with_nocase: String
+  domain_: Domain_filter
+  blockNumber: Int
+  blockNumber_not: Int
+  blockNumber_gt: Int
+  blockNumber_lt: Int
+  blockNumber_gte: Int
+  blockNumber_lte: Int
+  blockNumber_in: [Int!]
+  blockNumber_not_in: [Int!]
+  triggeredDate: BigInt
+  triggeredDate_not: BigInt
+  triggeredDate_gt: BigInt
+  triggeredDate_lt: BigInt
+  triggeredDate_gte: BigInt
+  triggeredDate_lte: BigInt
+  triggeredDate_in: [BigInt!]
+  triggeredDate_not_in: [BigInt!]
+  transactionID: Bytes
+  transactionID_not: Bytes
+  transactionID_in: [Bytes!]
+  transactionID_not_in: [Bytes!]
+  transactionID_contains: Bytes
+  transactionID_not_contains: Bytes
+  keyHash: BigInt
+  keyHash_not: BigInt
+  keyHash_gt: BigInt
+  keyHash_lt: BigInt
+  keyHash_gte: BigInt
+  keyHash_lte: BigInt
+  keyHash_in: [BigInt!]
+  keyHash_not_in: [BigInt!]
+  value: BigInt
+  value_not: BigInt
+  value_gt: BigInt
+  value_lt: BigInt
+  value_gte: BigInt
+  value_lte: BigInt
+  value_in: [BigInt!]
+  value_not_in: [BigInt!]
+
+  """Filter for the block changed event."""
+  _change_block: BlockChangedFilter
+}
+
+enum SetLink_orderBy {
+  id
+  domain
+  blockNumber
+  triggeredDate
+  transactionID
+  keyHash
+  value
 }
 
 type SetName implements AccountEvent {
@@ -2677,6 +2797,36 @@ type Subscription {
     """
     subgraphError: _SubgraphErrorPolicy_! = deny
   ): [Set!]!
+  setLink(
+    id: ID!
+
+    """
+    The block at which the query should be executed. Can either be a `{ hash: Bytes }` value containing a block hash, a `{ number: Int }` containing the block number, or a `{ number_gte: Int }` containing the minimum block number. In the case of `number_gte`, the query will be executed on the latest block only if the subgraph has progressed to or past the minimum block number. Defaults to the latest block when omitted.
+    """
+    block: Block_height
+
+    """
+    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
+    """
+    subgraphError: _SubgraphErrorPolicy_! = deny
+  ): SetLink
+  setLinks(
+    skip: Int = 0
+    first: Int = 100
+    orderBy: SetLink_orderBy
+    orderDirection: OrderDirection
+    where: SetLink_filter
+
+    """
+    The block at which the query should be executed. Can either be a `{ hash: Bytes }` value containing a block hash, a `{ number: Int }` containing the block number, or a `{ number_gte: Int }` containing the minimum block number. In the case of `number_gte`, the query will be executed on the latest block only if the subgraph has progressed to or past the minimum block number. Defaults to the latest block when omitted.
+    """
+    block: Block_height
+
+    """
+    Set to `allow` to receive data even if the subgraph has skipped over errors while syncing.
+    """
+    subgraphError: _SubgraphErrorPolicy_! = deny
+  ): [SetLink!]!
   transfer(
     id: ID!
 
@@ -3317,6 +3467,9 @@ type _Block_ {
 
   """The block number"""
   number: Int!
+
+  """Integer representation of the timestamp stored in blocks for the chain"""
+  timestamp: Int
 }
 
 """The type for the top-level _meta field"""

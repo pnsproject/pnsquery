@@ -1,6 +1,8 @@
 #![allow(incomplete_features)]
 #![feature(return_position_impl_trait_in_trait)]
+#![feature(async_fn_in_trait)]
 
+mod accouts;
 mod new_subdomains;
 mod registrations;
 mod token_list;
@@ -8,11 +10,26 @@ mod token_list;
 use std::collections::HashMap;
 
 use cynic::Operation;
+use futures_util::Stream;
 use serde::Serialize;
+
 use tokio::io::AsyncWriteExt;
+
+use crate::accouts::QueryDomainsBuilder;
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+    let accounts = QueryDomainsBuilder::query().await;
+
+    let all_accounts_name = format!(
+        "all_accounts{}.json",
+        time::OffsetDateTime::now_utc().unix_timestamp()
+    );
+
+    let mut file = tokio::fs::File::create(all_accounts_name).await?;
+    file.write_all(&serde_json::to_vec_pretty(&accounts)?)
+        .await?;
+
     let token_list = query_all::<token_list::QueryTokenList>().await;
 
     let new_subdomain = query_all::<new_subdomains::NewSubdomainQueryBuilder>().await;
@@ -68,8 +85,7 @@ where
     ResponseData: serde::de::DeserializeOwned + 'static,
 {
     cynic::http::ReqwestExt::run_graphql(
-        reqwest::Client::new()
-            .post("https://moonbeamgraph.test-pns-link.com/subgraphs/name/graphprotocol/pns"),
+        reqwest::Client::new().post("https://pns-graph.ddns.so/subgraphs/name/graphprotocol/pns"),
         query,
     )
     .await
@@ -93,6 +109,18 @@ pub trait IsFull {
     }
 
     fn into_iter(self) -> impl IntoIterator<Item = Self::Item>;
+}
+
+pub trait IsFullAsync {
+    type Item: 'static;
+
+    fn len(&self) -> usize;
+
+    fn is_full(&self) -> bool {
+        self.len() == 1000
+    }
+
+    async fn into_stream(self) -> impl Stream<Item = Self::Item>;
 }
 
 async fn query_all<QueryBuilder>(
@@ -121,15 +149,17 @@ pub trait HandleId {
     fn handle_id<const L: usize>(&self) -> String;
 }
 
-impl HandleId for cynic::Id {
+impl HandleId for String {
     fn handle_id<const L: usize>(&self) -> String {
-        let inner = self.inner();
-        let len = inner.len();
+        let len = self.len();
         if len != L {
-            let (prefix, data) = inner.split_at(2);
+            let (prefix, data) = self.split_at(2);
             String::from(prefix) + &String::from_iter(vec!['0'; L - len]) + data
         } else {
-            inner.into()
+            self.into()
         }
     }
 }
+
+pub const ACCOUNT_ID_LEN: usize = 42;
+pub const DOMAIN_ID_LEN: usize = 66;
