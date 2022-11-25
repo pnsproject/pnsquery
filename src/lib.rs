@@ -2,82 +2,18 @@
 #![feature(return_position_impl_trait_in_trait)]
 #![feature(async_fn_in_trait)]
 
-mod accouts;
-mod new_subdomains;
-mod registrations;
-mod token_list;
+pub mod accouts;
+pub mod new_accounts;
+pub mod new_subdomains;
+pub mod registrations;
+pub mod token_list;
 
 // use std::collections::HashMap;
 
 use cynic::Operation;
 use futures_util::Stream;
-use serde::Serialize;
 
-use tokio::io::AsyncWriteExt;
-
-use crate::accouts::QueryDomainsBuilder;
-
-#[tokio::main]
-async fn main() -> anyhow::Result<()> {
-    let accounts = QueryDomainsBuilder::query().await;
-
-    let all_accounts_name = format!(
-        "all_accounts{}.json",
-        time::OffsetDateTime::now_utc().unix_timestamp()
-    );
-
-    let mut file = tokio::fs::File::create(all_accounts_name).await?;
-    file.write_all(&serde_json::to_vec_pretty(&accounts)?)
-        .await?;
-
-    // let token_list = query_all::<token_list::QueryTokenList>().await;
-
-    // let new_subdomain = query_all::<new_subdomains::NewSubdomainQueryBuilder>().await;
-
-    // println!("token_list len: {}", token_list.len());
-
-    // println!("new_subdomain len: {}", new_subdomain.len());
-
-    // let pns_info = PnsInfo {
-    //     token_list,
-    //     new_subdomain,
-    // };
-
-    // let pns_info_name = format!(
-    //     "pns_info{}.json",
-    //     time::OffsetDateTime::now_utc().unix_timestamp()
-    // );
-
-    // let mut file = tokio::fs::File::create(pns_info_name).await?;
-    // file.write_all(&serde_json::to_vec_pretty(&pns_info)?)
-    //     .await?;
-
-    // let query_records = registrations::Records(
-    //     IntoIterator::into_iter(query_all::<registrations::RecordsBuilder>().await)
-    //         .collect::<HashMap<_, _>>(),
-    // );
-
-    // println!("records len:{}", query_records.0.len());
-
-    // let records_name = format!(
-    //     "records{}.json",
-    //     time::OffsetDateTime::now_utc().unix_timestamp()
-    // );
-
-    // let mut file = tokio::fs::File::create(records_name).await?;
-    // file.write_all(&serde_json::to_vec_pretty(&query_records)?)
-    //     .await?;
-
-    Ok(())
-}
-
-#[derive(Debug, Serialize)]
-pub struct PnsInfo {
-    token_list: Vec<String>,
-    new_subdomain: Vec<new_subdomains::NewSubdomain>,
-}
-
-async fn run_graphql<ResponseData, Vars>(
+pub async fn run_graphql<ResponseData, Vars>(
     query: Operation<ResponseData, Vars>,
 ) -> cynic::GraphQlResponse<ResponseData>
 where
@@ -123,7 +59,7 @@ pub trait IsFullAsync {
     async fn into_stream(self) -> impl Stream<Item = Self::Item>;
 }
 
-async fn query_all<QueryBuilder>(
+pub async fn query_all<QueryBuilder>(
 ) -> Vec<<<QueryBuilder as BuildQuery>::ResponseData as IsFull>::Item>
 where
     QueryBuilder: BuildQuery,
@@ -163,3 +99,6 @@ impl HandleId for String {
 
 pub const ACCOUNT_ID_LEN: usize = 42;
 pub const DOMAIN_ID_LEN: usize = 66;
+
+pub const OFFSET: i32 = 500;
+pub const FIRST: usize = 600;
