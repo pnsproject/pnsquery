@@ -24,7 +24,9 @@ query QueryDomains($skip: Int = 10, $id: ID = "") {
 ```
 */
 /// 2022-11-08 20:00:00
-const MAX_TIMESTAMP: i32 = 1667908800;
+const OLD_TIMESTAMP: i32 = 1667908800;
+/// 2022-11-21 20:00:00
+const NEW_TIMESTAMP: i32 = 1669032000;
 
 #[cynic::schema_for_derives(file = r#"schema.gql"#, module = "schema")]
 mod queries {
@@ -88,24 +90,27 @@ mod schema {
 }
 
 use futures_util::{stream, Stream, StreamExt};
-use serde::{Deserialize, Serialize};
-use std::collections::HashSet;
+use serde::Serialize;
+use std::collections::{HashMap, HashSet};
 
-use crate::{run_graphql, HandleId, IsFull, IsFullAsync, ACCOUNT_ID_LEN, FIRST, OFFSET};
+use crate::{run_graphql, HandleId, IsFull, IsFullAsync, ACCOUNT_ID_LEN};
 
-#[derive(Debug, Serialize, Deserialize, Default)]
+#[derive(Debug, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AllAccounts {
-    pub accounts_num: usize,
-    pub accounts: HashSet<Account>,
+    old_accounts_num: usize,
+    old_accounts: HashSet<Account>,
+    new_accounts_num: usize,
+    new_accounts: HashSet<Account>,
 }
 
-#[derive(Debug, Serialize, Deserialize, Eq, Clone)]
+#[derive(Debug, Serialize, Eq)]
 #[serde(rename_all = "camelCase")]
 pub struct Account {
     id: String,
-    domains_num: usize,
-    pub domains: HashSet<String>,
+    old_domains_num: usize,
+    new_domains_num: usize,
+    domains: HashMap<String, i32>,
 }
 
 impl PartialEq for Account {
@@ -120,9 +125,9 @@ impl core::hash::Hash for Account {
     }
 }
 
-pub struct QueryDomainsBuilder;
+pub struct QueryNewDomainsBuilder;
 
-impl QueryDomainsBuilder {
+impl QueryNewDomainsBuilder {
     fn build_query(
         offset: i32,
         id: cynic::Id,
@@ -136,7 +141,8 @@ impl QueryDomainsBuilder {
     pub async fn query() -> AllAccounts {
         let mut is_full = true;
         let mut offset = 0;
-        let mut res = HashSet::default();
+        let mut old = HashSet::default();
+        let mut new = HashSet::default();
 
         while is_full {
             let data = run_graphql(<queries::QueryAccounts as cynic::QueryBuilder>::build(
@@ -145,21 +151,31 @@ impl QueryDomainsBuilder {
             .await
             .data
             .unwrap();
-            offset += OFFSET;
+            offset += 1000;
             is_full = data.is_full();
 
-            res.extend(data.into_stream().await.collect::<HashSet<_>>().await);
+            let mut stream = data.into_stream().await.boxed();
+
+            while let Some(addr) = stream.next().await {
+                if addr.old_domains_num == 0 {
+                    new.insert(addr);
+                } else {
+                    old.insert(addr);
+                }
+            }
         }
 
         AllAccounts {
-            accounts_num: res.len(),
-            accounts: res,
+            old_accounts_num: old.len(),
+            old_accounts: old,
+            new_accounts_num: new.len(),
+            new_accounts: new,
         }
     }
 }
 
 impl IsFull for queries::QueryDomains {
-    type Item = HashSet<String>;
+    type Item = HashMap<String, i32>;
 
     fn len(&self) -> usize {
         self.account
@@ -174,12 +190,15 @@ impl IsFull for queries::QueryDomains {
                 a.domains
                     .into_iter()
                     .filter_map(|d| {
-                        if d.created_at.0.parse::<i32>().unwrap() > MAX_TIMESTAMP {
+                        let created_at = d.created_at.0.parse::<i32>().unwrap();
+
+                        if created_at > NEW_TIMESTAMP {
                             return None;
                         }
-                        d.name
+
+                        Some((d.name.unwrap(), created_at))
                     })
-                    .collect::<HashSet<_>>()
+                    .collect::<HashMap<_, _>>()
             })
             .into_iter()
     }
@@ -196,20 +215,20 @@ impl IsFullAsync for queries::QueryAccounts {
         stream::iter(self.accounts.into_iter()).filter_map(|account| async move {
             let domains_len = account.domains.len();
             let mut full = None;
-            if domains_len == FIRST {
+            if domains_len == 1000 {
                 let mut is_full = true;
-                let mut offset = OFFSET;
+                let mut offset = 1000;
                 let mut res = Vec::default();
 
                 while is_full {
-                    let data = run_graphql(QueryDomainsBuilder::build_query(
+                    let data = run_graphql(QueryNewDomainsBuilder::build_query(
                         offset,
                         cynic::Id::new(&account.id.0),
                     ))
                     .await
                     .data
                     .unwrap();
-                    offset += OFFSET;
+                    offset += 1000;
                     is_full = data.is_full();
 
                     res.extend(data.into_iter());
@@ -222,12 +241,15 @@ impl IsFullAsync for queries::QueryAccounts {
                 .domains
                 .into_iter()
                 .filter_map(|d| {
-                    if d.created_at.0.parse::<i32>().unwrap() > MAX_TIMESTAMP {
+                    let created_at = d.created_at.0.parse::<i32>().unwrap();
+
+                    if created_at > NEW_TIMESTAMP {
                         return None;
                     }
-                    d.name
+
+                    Some((d.name.unwrap(), created_at))
                 })
-                .collect::<HashSet<_>>();
+                .collect::<HashMap<_, _>>();
             if let Some(full) = full {
                 full.into_iter().for_each(|set| domains.extend(set));
             }
@@ -239,7 +261,8 @@ impl IsFullAsync for queries::QueryAccounts {
 
             Some(Account {
                 id: account.id.0.handle_id::<ACCOUNT_ID_LEN>(),
-                domains_num: domains.len(),
+                old_domains_num: domains.iter().filter(|(_, t)| **t <= OLD_TIMESTAMP).count(),
+                new_domains_num: domains.iter().filter(|(_, t)| **t > OLD_TIMESTAMP).count(),
                 domains,
             })
         })

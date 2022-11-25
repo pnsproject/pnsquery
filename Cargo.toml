@@ -14,3 +14,24 @@ time = "0.3"
 serde_json = { version = "1", features = ["preserve_order"] }
 serde = "1"
 futures-util = "0.3"
+
+
+[[bin]]
+name = "query_all_accounts"
+path = "./bin/query_all_accounts.rs"
+
+[[bin]]
+name = "query_all_new_accounts"
+path = "./bin/query_all_new_accounts.rs"
+
+[[bin]]
+name = "query_pns_info"
+path = "./bin/query_pns_info.rs"
+
+[[bin]]
+name = "query_records"
+path = "./bin/query_records.rs"
+
+[[bin]]
+name = "data_analyzer"
+path = "./bin/data_analyzer.rs"
