@@ -24,7 +24,7 @@ query QueryDomains($skip: Int = 10, $id: ID = "") {
 ```
 */
 /// 2022-11-08 20:00:00
-const MAX_TIMESTAMP: i32 = 1667908800;
+const MAX_TIMESTAMP: i32 = 1671969600;
 
 #[cynic::schema_for_derives(file = r#"schema.gql"#, module = "schema")]
 mod queries {
@@ -98,6 +98,36 @@ use crate::{run_graphql, HandleId, IsFull, IsFullAsync, ACCOUNT_ID_LEN, FIRST, O
 pub struct AllAccounts {
     pub accounts_num: usize,
     pub accounts: HashSet<Account>,
+}
+
+#[derive(Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "camelCase")]
+pub struct AllAccountsClear {
+    pub accounts_num: usize,
+    pub accounts: HashSet<String>,
+}
+
+impl AllAccountsClear {
+    pub fn from_all_accounts(all_accounts: AllAccounts) -> Self {
+        let AllAccounts {
+            accounts_num,
+            accounts,
+        } = all_accounts;
+
+        Self {
+            accounts_num,
+            accounts: accounts
+                .into_iter()
+                .filter_map(|account| {
+                    if account.domains_num > 0 {
+                        Some(account.id)
+                    } else {
+                        None
+                    }
+                })
+                .collect(),
+        }
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, Eq, Clone)]

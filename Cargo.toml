@@ -21,6 +21,10 @@ name = "query_all_accounts"
 path = "./bin/query_all_accounts.rs"
 
 [[bin]]
+name = "query_all_accounts_clear"
+path = "./bin/query_all_accounts_clear.rs"
+
+[[bin]]
 name = "query_all_new_accounts"
 path = "./bin/query_all_new_accounts.rs"
 
