@@ -3,12 +3,13 @@
 #![feature(async_fn_in_trait)]
 
 pub mod accouts;
-pub mod new_accounts;
-pub mod new_subdomains;
+// pub mod new_accounts;
+// pub mod new_subdomains;
 pub mod registrations;
-pub mod token_list;
+// pub mod token_list;
 
-// use std::collections::HashMap;
+#[cynic::schema("pns")]
+pub mod schema {}
 
 use cynic::Operation;
 use futures_util::Stream;
@@ -21,7 +22,7 @@ where
     ResponseData: serde::de::DeserializeOwned + 'static,
 {
     cynic::http::ReqwestExt::run_graphql(
-        reqwest::Client::new().post("https://pns-graph.ddns.so/subgraphs/name/graphprotocol/pns"),
+        reqwest::Client::new().post("https://pnsgraph-api.pns.link/graphql"),
         query,
     )
     .await

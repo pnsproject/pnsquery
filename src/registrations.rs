@@ -15,9 +15,8 @@ query QueryRegistrations($skip: Int = 10) {
 }
 ```
 */
-#[cynic::schema_for_derives(file = r#"schema.gql"#, module = "schema")]
 mod queries {
-    use super::schema;
+    use crate::schema;
 
     #[derive(cynic::QueryVariables, Debug)]
     pub struct QueryRegistrationsVariables {
@@ -27,7 +26,7 @@ mod queries {
     #[derive(cynic::QueryFragment, Debug)]
     #[cynic(graphql_type = "Query", variables = "QueryRegistrationsVariables")]
     pub struct QueryRegistrations {
-        #[arguments(skip: $skip, first: 1000)]
+        #[arguments(offset: $skip, limit: 1000)]
         pub registrations: Vec<Registration>,
     }
 
@@ -43,24 +42,16 @@ mod queries {
     #[cynic(graphql_type = "Domain")]
     pub struct Domain2 {
         pub subdomain_count: i32,
-        pub id: Bytes,
+        pub id: String,
     }
 
     #[derive(cynic::QueryFragment, Debug)]
     pub struct Domain {
-        pub id: Bytes,
+        pub id: String,
     }
 
     #[derive(cynic::Scalar, Debug, Clone)]
     pub struct BigInt(pub String);
-
-    #[derive(cynic::Scalar, Debug, Clone)]
-    pub struct Bytes(pub String);
-}
-
-#[allow(non_snake_case, non_camel_case_types)]
-mod schema {
-    cynic::use_schema!(r#"schema.gql"#);
 }
 
 use std::collections::HashMap;
@@ -70,6 +61,8 @@ use serde::Serialize;
 use crate::{BuildQuery, IsFull, DOMAIN_ID_LEN};
 
 use self::queries::Domain2;
+
+use cynic::QueryBuilder;
 
 #[derive(Debug, Serialize)]
 pub struct Record {
@@ -90,9 +83,9 @@ impl BuildQuery for RecordsBuilder {
     type ResponseData = queries::QueryRegistrations;
 
     fn build_query(offset: i32) -> cynic::Operation<Self::ResponseData, Self::Vars> {
-        <queries::QueryRegistrations as cynic::QueryBuilder>::build(
-            queries::QueryRegistrationsVariables { skip: Some(offset) },
-        )
+        queries::QueryRegistrations::build(queries::QueryRegistrationsVariables {
+            skip: Some(offset),
+        })
     }
 }
 
@@ -110,14 +103,11 @@ impl IsFull for queries::QueryRegistrations {
                 subdomain_count,
             } = registration.domain;
             (
-                crate::HandleId::handle_id::<DOMAIN_ID_LEN>(&id.0),
+                crate::HandleId::handle_id::<DOMAIN_ID_LEN>(&id),
                 Record {
                     expire: registration.expiry_date.and_then(|d| d.0.parse().ok()),
                     origin: crate::HandleId::handle_id::<DOMAIN_ID_LEN>(
-                        &registration
-                            .origin
-                            .map(|origin| origin.id.0)
-                            .unwrap_or(id.0),
+                        &registration.origin.map(|origin| origin.id).unwrap_or(id),
                     ),
                     capacity: registration
                         .capacity

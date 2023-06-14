@@ -9,5 +9,5 @@ graphql的代码部分是由 <https://generator.cynic-rs.dev/> 生成的
 Export GraphQL schema from an endpoint
 
 ```shell
-gq https://my-graphql-endpoint --introspect > schema.gql
+get-graphql-schema https://my-graphql-endpoint > schema.gql
 ```
